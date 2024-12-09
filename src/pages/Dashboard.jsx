@@ -9,7 +9,7 @@ const Dashboard = () => {
   const [editId, setEditId] = useState(null);
   const [error, setError] = useState("");
   const [currentPage, setCurrentPage] = useState(1); // State untuk halaman saat ini
-  const itemsPerPage = 5; // Batas data yang ditampilkan per halaman
+  const itemsPerPage = 15; // Batas data yang ditampilkan per halaman
 
   useEffect(() => {
     fetchGalleries();

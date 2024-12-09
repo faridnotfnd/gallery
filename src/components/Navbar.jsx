@@ -1,17 +1,38 @@
-import { Link } from 'react-router-dom';
-import iconImage from '../../public/img/iconicHutao.png'; // Pastikan untuk mengganti dengan path gambar yang benar
+import { Link, useLocation } from 'react-router-dom';
+import iconImage from '../../public/img/iconicHutao.png';// Pastikan path benar
 
 const Navbar = () => {
+  const location = useLocation();
+
+  // Hanya tampilkan Navbar di halaman Home
+  if (location.pathname !== '/Home') {
+    return null;
+  }
+
   return (
-    <nav className="bg-[#422006] p-4">
+    <nav className="bg-[#faf8f4] shadow-md p-4">
       <div className="container mx-auto flex justify-between items-center">
-        {/* Gambar icon di sebelah kiri sebagai pengganti Home */}
-        <Link to="/">
-          <img src={iconImage} alt="Home Icon" className="h-8 w-8" /> {/* Atur ukuran gambar sesuai kebutuhan */}
+        {/* Gambar icon di sebelah kiri */}
+        <Link to="/" className="flex items-center">
+        <h2 className="text-xl font-lora mr-15">Gallery</h2>
         </Link>
 
+        {/* Search bar di tengah */}
+        <div className="flex-1 mx-4">
+          <input
+            type="text"
+            placeholder="Telusuri Galeri"
+            className="w-full p-2 rounded-full border border-gray-300 focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm text-gray-600"
+          />
+        </div>
+
         {/* Link Login di sebelah kanan */}
-        <Link to="/login" className="text-white ml-auto">Login</Link>
+        <Link
+          to="/my-galleries"
+          className="text-sm text-gray-700 hover:text-blue-600 font-medium"
+        >
+          Upload
+        </Link>
       </div>
     </nav>
   );

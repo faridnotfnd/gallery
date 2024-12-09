@@ -9,24 +9,33 @@ const GalleryForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token'); // Ambil token dari local storage
-      await axios.post('http://localhost:5000/api/galleries', {
-        title,
-        description,
-        image_url: imageUrl,
-      }, {
-        headers: {
-          Authorization: `Bearer ${token}`,
+      const token = localStorage.getItem("token");
+      const userId = localStorage.getItem("userId");
+      if (!userId || !token) {
+        console.error("User not authenticated.");
+        return;
+      }
+      await axios.post(
+        "http://localhost:5000/api/galleries",
+        {
+          title,
+          description,
+          image_url: imageUrl,
+          user_id: userId, // Sertakan user_id
         },
-      });
-      // Reset form setelah sukses
-      setTitle('');
-      setDescription('');
-      setImageUrl('');
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      setTitle("");
+      setDescription("");
+      setImageUrl("");
     } catch (error) {
-      console.error('Error adding gallery:', error);
+      console.error("Error adding gallery:", error);
     }
-  };
+  };    
 
   return (
     <form onSubmit={handleSubmit} className="p-4">
