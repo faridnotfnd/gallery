@@ -1,9 +1,10 @@
 import React from 'react'
+import DashboardAdmin from '../components/DashboardAdmin'
 
 const AdminDashboard = () => {
   return (
     <>
-      <h1>Admin Dashboard</h1>
+      <DashboardAdmin />
     </>
   )
 }

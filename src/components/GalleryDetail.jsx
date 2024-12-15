@@ -7,10 +7,11 @@ const GalleryDetail = () => {
   const [gallery, setGallery] = useState(null);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
+  const [likes, setLikes] = useState(0);
+  const [liked, setLiked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Fetch gallery details and comments
   useEffect(() => {
     const fetchGalleryDetails = async () => {
       try {
@@ -26,36 +27,81 @@ const GalleryDetail = () => {
     const fetchComments = async () => {
       try {
         const response = await axios.get(
-          `http://localhost:5000/api/galleries/${id}/comments`
+          `http://localhost:5000/api/comments/${id}`
         );
-        console.log("Fetched comments:", response.data);
         setComments(response.data);
       } catch (error) {
         console.error("Error fetching comments:", error);
       }
     };
 
+    const fetchLikes = async () => {
+      try {
+        const response = await axios.get(
+          `http://localhost:5000/api/likes/count/${id}`
+        );
+        setLikes(response.data.like_count);
+
+        const userLiked = await axios.get(
+          `http://localhost:5000/api/likes/user/${id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          }
+        );
+        setLiked(userLiked.data.liked);
+      } catch (error) {
+        console.error("Error fetching likes:", error);
+      }
+    };
+
     fetchGalleryDetails();
     fetchComments();
+    fetchLikes();
   }, [id]);
 
-  // Handle add comment
+  const handleLikeToggle = async () => {
+    try {
+      if (liked) {
+        await axios.delete(`http://localhost:5000/api/likes/${id}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        });
+        setLikes((prev) => prev - 1);
+      } else {
+        await axios.post(
+          `http://localhost:5000/api/likes`,
+          { gallery_id: id },
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          }
+        );
+        setLikes((prev) => prev + 1);
+      }
+      setLiked(!liked);
+    } catch (error) {
+      console.error("Error toggling like:", error);
+    }
+  };
+
   const handleAddComment = async (e) => {
     e.preventDefault();
     if (!newComment.trim()) return;
 
     try {
       setLoading(true);
-      setError(null); // Reset error before sending request
+      setError(null);
       await axios.post(
-        `http://localhost:5000/api/galleries/${id}/comments`,
+        `http://localhost:5000/api/comments/${id}`,
         { comment: newComment },
         {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         }
       );
       const response = await axios.get(
-        `http://localhost:5000/api/galleries/${id}/comments`
+        `http://localhost:5000/api/comments/${id}`
       );
       setComments(response.data);
       setNewComment("");
@@ -67,7 +113,7 @@ const GalleryDetail = () => {
     }
   };
 
-  if (!gallery) return <div>Loading...</div>;
+  if (!gallery) return <div></div>;
 
   return (
     <div className="flex justify-center items-center bg-[#faf8f4] h-screen">
@@ -81,7 +127,15 @@ const GalleryDetail = () => {
           />
         </div>
         {/* Bagian Detail dan Komentar */}
-        <div className="w-3/5 p-6">
+        <div className="w-3/5 p-6 relative">
+          {/* Tombol Like */}
+          <button
+            onClick={handleLikeToggle}
+            className={`absolute top-6 right-6 ${
+              liked ? "text-red-500" : "text-gray-500"
+            }`}>
+            ❤️ {likes}
+          </button>
           {/* Detail */}
           <div>
             <h1 className="text-2xl font-bold">{gallery.title}</h1>
@@ -105,7 +159,7 @@ const GalleryDetail = () => {
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    handleAddComment(e); // Kirim komentar saat Enter ditekan
+                    handleAddComment(e);
                   }
                 }}
                 rows={3}
@@ -113,15 +167,21 @@ const GalleryDetail = () => {
               {error && <p className="text-red-500 mt-2">{error}</p>}
             </form>
             {/* Daftar Komentar */}
-            <div className="space-y-4">
+            <div
+              className="space-y-4 max-h-60 overflow-y-auto border-t border-gray-200 pt-4"
+              style={{
+                scrollbarWidth: "thin",
+                scrollbarColor: "#888 #f1f1f1",
+              }}>
               {comments.map((comment) => (
                 <div
                   key={comment.id || comment.createdAt}
                   className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                  <p className="text-gray-700">{comment.comment}</p>
                   <span className="text-sm text-gray-500">
-                    Oleh: {comment.user?.username || "Anonim"}
+                    {comment.User?.username || "Anonim"}{" "}
+                    {/* Akses username */}
                   </span>
+                  <p className="text-gray-700">{comment.comment}</p>
                 </div>
               ))}
             </div>
