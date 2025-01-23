@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faHeart as solidHeart } from "@fortawesome/free-solid-svg-icons";
+import { faHeart as regularHeart } from "@fortawesome/free-regular-svg-icons";
 
 const GalleryDetail = () => {
   const { id } = useParams();
@@ -63,24 +66,37 @@ const GalleryDetail = () => {
 
   const handleLikeToggle = async () => {
     try {
+      const user_id = localStorage.getItem("user_id");
+      if (!user_id) {
+        console.error("User ID tidak ditemukan di localStorage.");
+        return;
+      }
+
       if (liked) {
-        await axios.delete(`http://localhost:5000/api/likes/${id}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        });
-        setLikes((prev) => prev - 1);
-      } else {
-        await axios.post(
-          `http://localhost:5000/api/likes`,
-          { gallery_id: id },
+        // Jika sudah like, maka hapus like (unlike)
+        const response = await axios.delete(
+          `http://localhost:5000/api/likes/user/${id}?user_id=${user_id}`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
             },
           }
         );
-        setLikes((prev) => prev + 1);
+        setLikes((prev) => prev - 1); // Decrement likes count
+      } else {
+        // Jika belum like, maka tambahkan like
+        const response = await axios.post(
+          `http://localhost:5000/api/likes/`,
+          { gallery_id: id, user_id }, // Kirimkan gallery_id dan user_id untuk menambahkan like
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          }
+        );
+        setLikes((prev) => prev + 1); // Increment likes count
       }
-      setLiked(!liked);
+      setLiked(!liked); // Toggle state liked
     } catch (error) {
       console.error("Error toggling like:", error);
     }
@@ -133,8 +149,9 @@ const GalleryDetail = () => {
             onClick={handleLikeToggle}
             className={`absolute top-6 right-6 ${
               liked ? "text-red-500" : "text-gray-500"
-            }`}>
-            ❤️ {likes}
+            } text-xl hover:scale-110 transition-transform`}>
+            <FontAwesomeIcon icon={liked ? solidHeart : regularHeart} />
+            <span className="ml-2">{likes}</span>
           </button>
           {/* Detail */}
           <div>
@@ -178,8 +195,7 @@ const GalleryDetail = () => {
                   key={comment.id || comment.createdAt}
                   className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                   <span className="text-sm text-gray-500">
-                    {comment.User?.username || "Anonim"}{" "}
-                    {/* Akses username */}
+                    {comment.User?.username || "Anonim"} {/* Akses username */}
                   </span>
                   <p className="text-gray-700">{comment.comment}</p>
                 </div>

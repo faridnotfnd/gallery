@@ -5,22 +5,19 @@ const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [username, setUsername] = useState("");
 
   useEffect(() => {
-    // Periksa token di localStorage saat aplikasi dimuat
     const token = localStorage.getItem("token");
     setIsLoggedIn(!!token);
+
+    // Ambil username dari localStorage jika tersedia
+    const storedUsername = localStorage.getItem("username");
+    if (storedUsername) {
+      setUsername(storedUsername);
+    }
   }, [location]);
 
-  const handleLogout = () => {
-    // Hapus token dan data pengguna, ubah status login
-    localStorage.removeItem("token");
-    localStorage.removeItem("userId");
-    setIsLoggedIn(false);
-    navigate("/"); // Kembali ke halaman Home
-  };
-
-  // Hanya tampilkan Navbar jika di halaman '/'
   if (location.pathname !== "/") {
     return null;
   }
@@ -42,35 +39,25 @@ const Navbar = () => {
           />
         </div>
 
-        {/* Tombol navigasi di kanan */}
+        {/* Navigasi di kanan */}
         <div className="space-x-4 flex items-center">
           {isLoggedIn ? (
-            <>
-              {/* Link "Buat" untuk membuat album */}
-              <Link 
-              to="/create-album"
-              className="text-sm text-gray-700 hover:text-blue-600 font-medium">
-                Buat Album
-              </Link>
-              {/* Link "Upload" untuk mengakses galeri pribadi */}
-              <Link
-                to="/my-galleries"
-                className="text-sm text-gray-700 hover:text-blue-600 font-medium">
-                Upload
-              </Link>
-              {/* Tombol Logout */}
-              <button
-                onClick={() => {
-                  if (window.confirm("Yakin anda ingin Logout?")) {
-                    // Konfirmasi logout
-                    handleLogout(); // Panggil fungsi logout
-                    navigate("/"); // Redirect ke halaman utama
-                  }
-                }}
-                className="text-sm text-red-500 hover:text-red-700 font-medium">
-                Logout
-              </button>
-            </>
+            <div className="flex items-center space-x-2">
+              {/* Gambar Profil */}
+              <img
+                src="https://upload.wikimedia.org/wikipedia/commons/a/ac/Default_pfp.jpg"
+                alt="Profil"
+                className="w-8 h-8 rounded-full border border-gray-300 cursor-pointer"
+                title="Klik untuk ke halaman Profile"
+                onClick={() => navigate("/profile")}
+              />
+              {/* Username */}
+              <span
+                onClick={() => navigate("/profile")}
+                className="text-sm text-gray-700 font-medium cursor-pointer">
+                {username}
+              </span>
+            </div>
           ) : (
             <Link
               to="/login"

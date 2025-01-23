@@ -76,7 +76,7 @@ const GalleryList = () => {
 
       {isUser && (
         <div className="mt-4 text-center">
-          <Link to="/my-galleries" className="text-blue-500 hover:text-blue-700">
+          <Link to="/dashboard" className="text-blue-500 hover:text-blue-700">
             Upload New Gallery
           </Link>
         </div>

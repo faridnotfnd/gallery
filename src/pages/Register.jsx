@@ -94,7 +94,7 @@ const Register = () => {
                 required
               />
             </div>
-            {isAdmin && (
+            {/* {isAdmin && (
               <div className="mb-4">
                 <label
                   className="block text-sm font-medium mb-1"
@@ -118,7 +118,7 @@ const Register = () => {
                 className="text-blue-500 hover:underline">
                 Registrasi sebagai {isAdmin ? "User" : "Admin"}
               </button>
-            </div>
+            </div> */}
             <button
               type="submit"
               className="bg-blue-500 text-white py-2 rounded w-full hover:bg-blue-600">

@@ -21,13 +21,31 @@ const Login = () => {
         ? "http://localhost:5000/api/auth/admin/login"
         : "http://localhost:5000/api/auth/login";
       const payload = isAdmin ? { email, password, adminCode } : { email, password };
-
+  
       const response = await axios.post(endpoint, payload);
+      
+      // Debug: Lihat struktur response yang sebenarnya
+      console.log('Full response data:', response.data);
+  
+      // Simpan data di localStorage setelah login berhasil
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("userRole", isAdmin ? "admin" : "user");
+      localStorage.setItem("username", response.data.username);
+      
+      // Simpan user_id dengan pengecekan
+      if (response.data.id) {
+        localStorage.setItem("user_id", response.data.id.toString());
+      } else if (response.data.user?.id) {
+        localStorage.setItem("user_id", response.data.user.id.toString());
+      } else {
+        console.error('User ID not found in response');
+      }
+  
+      // Navigasi berdasarkan role
       navigate(isAdmin ? "/admin-dashboard" : "/");
     } catch (error) {
-      setError("Invalid email, password, or admin code.");
+      console.error('Login error:', error.response?.data || error.message);
+      setError("Invalid email or password");
     }
   };
 
@@ -89,18 +107,22 @@ const Login = () => {
             </div>
             <button type="submit" className="bg-blue-500 text-white py-2 rounded w-full hover:bg-blue-600">Login</button>
           </form>
-          <div className="flex items-center my-6">
-            <div className="flex-grow h-px bg-gray-300"></div>
-            <span className="px-3 text-gray-500 text-sm">OR</span>
-            <div className="flex-grow h-px bg-gray-300"></div>
-          </div>
-          <button
-            type="button"
-            onClick={handleNavigateToRegister}
-            className="flex flex-col items-center justify-center w-full border-none rounded-lg py-2 bg-transparent">
-            <span className="text-gray-500">Don't have an account?</span>
-            <span className="text-black font-semibold underline font-lora">Register Now</span>
-          </button>
+          {!isAdmin && ( // Tampilkan teks hanya jika login sebagai user
+            <div>
+              <div className="flex items-center my-6">
+                <div className="flex-grow h-px bg-gray-300"></div>
+                <span className="px-3 text-gray-500 text-sm">OR</span>
+                <div className="flex-grow h-px bg-gray-300"></div>
+              </div>
+              <button
+                type="button"
+                onClick={handleNavigateToRegister}
+                className="flex flex-col items-center justify-center w-full border-none rounded-lg py-2 bg-transparent">
+                <span className="text-gray-500">Don't have an account?</span>
+                <span className="text-black font-semibold underline font-lora">Register Now</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
