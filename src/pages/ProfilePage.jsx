@@ -162,15 +162,15 @@ const ProfilePage = () => {
       <div className="flex justify-between items-center p-4 bg-[#faf8f4]">
         <button
           onClick={() => navigate(-1)}
-          className="text-gray-600 hover:bg-gray-200 px-1  py-2 rounded-full text-sm font-medium">
-          <FontAwesomeIcon icon={faArrowLeft} className="w-6 h-6 px-3 py-2" />
+          className="text-gray-600 hover:bg-gray-200 px-3 py-3 rounded-full text-sm font-medium">
+          <FontAwesomeIcon icon={faArrowLeft} className="w-6 h-6" />
         </button>
         <button
           onClick={() => setShowLogoutModal(true)}
-          className="text-gray-600 hover:bg-gray-200 rounded-full text-sm font-medium">
+          className="text-gray-600 hover:bg-gray-200 px-3  py-3 rounded-full text-sm font-medium">
           <FontAwesomeIcon
             icon={faArrowRightFromBracket}
-            className="w-6 h-6  px-4 py-4"
+            className="w-6 h-6"
           />
         </button>
       </div>
@@ -326,7 +326,7 @@ const ProfilePage = () => {
 
         {/* Gallery Section (Masonry Layout) */}
         {activeTab === "gallery" && (
-          <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-6 space-y-6 min-h-[200px] flex justify-center items-center">
+          <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-6 space-y-6">
             {galleries.length > 0 ? (
               galleries.map((gallery) => (
                 <div
@@ -346,9 +346,9 @@ const ProfilePage = () => {
                 </div>
               ))
             ) : (
-              <div className="w-full min-h-[200px] flex justify-center items-center">
+              <div className="ww-full flex justify-center items-center">
                 <p className="text-gray-500 text-lg font-medium">
-                  Belum membuat Galeri
+                  Belum ada foto
                 </p>
               </div>
             )}
@@ -356,7 +356,7 @@ const ProfilePage = () => {
         )}
 
         {activeTab === "album" && (
-          <div className="grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 min-h-[200px] flex justify-center items-center">
+          <div className="grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {albums.length > 0 ? (
               albums.map((album) => (
                 <div
