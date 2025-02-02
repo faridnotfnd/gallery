@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 
-const Navbar = () => {
+const Navbar = ({ showModal }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -11,7 +11,6 @@ const Navbar = () => {
     const token = localStorage.getItem("token");
     setIsLoggedIn(!!token);
 
-    // Ambil username dari localStorage jika tersedia
     const storedUsername = localStorage.getItem("username");
     if (storedUsername) {
       setUsername(storedUsername);
@@ -23,14 +22,15 @@ const Navbar = () => {
   }
 
   return (
-    <nav className="fixed top-0 left-0 w-full bg-[#faf8f4] p-4 z-50">
+    <nav
+      className={`fixed top-0 left-0 w-full p-4 z-50 ${
+        showModal ? "bg-opacity-70 bg-[#faf8f4]" : "bg-[#faf8f4]"
+      }`}>
       <div className="container mx-auto flex justify-between items-center">
-        {/* Logo di kiri */}
         <Link to="/" className="flex items-center">
           <h2 className="text-xl font-lora">Cavallery</h2>
         </Link>
 
-        {/* Search bar di tengah */}
         <div className="flex-1 mx-4">
           <input
             type="text"
@@ -39,29 +39,24 @@ const Navbar = () => {
           />
         </div>
 
-        {/* Navigasi di kanan */}
         <div className="space-x-4 flex items-center">
           {isLoggedIn ? (
-            <div className="flex items-center space-x-2">
-              {/* Gambar Profil */}
+            <div
+              className="flex items-center space-x-2 cursor-pointer"
+              onClick={() => navigate("/profile")}>
               <img
                 src="https://upload.wikimedia.org/wikipedia/commons/a/ac/Default_pfp.jpg"
                 alt="Profil"
-                className="w-8 h-8 rounded-full border border-gray-300 cursor-pointer"
-                title="Klik untuk ke halaman Profile"
-                onClick={() => navigate("/profile")}
+                className="w-8 h-8 rounded-full border border-gray-300"
               />
-              {/* Username */}
-              <span
-                onClick={() => navigate("/profile")}
-                className="text-sm text-gray-700 font-medium cursor-pointer">
+              <span className="text-sm text-gray-700 font-medium">
                 {username}
               </span>
             </div>
           ) : (
             <Link
               to="/login"
-              className="text-sm text-gray-700 hover:text-blue-600 font-medium">
+              className="text-sm bg-gray-800 px-6 py-2 rounded-full text-gray-100 font-medium">
               Login
             </Link>
           )}

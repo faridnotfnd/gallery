@@ -1,199 +1,208 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faArrowLeft,
+  faImage,
+  faXmark,
+} from "@fortawesome/free-solid-svg-icons";
+
 
 const CreateAlbum = () => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [step, setStep] = useState(1);
-  const [createdAlbumId, setCreatedAlbumId] = useState(null);
-  const [userGalleries, setUserGalleries] = useState([]);
-  const [selectedPhotos, setSelectedPhotos] = useState([]);
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [previewUrls, setPreviewUrls] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleCreateAlbum = async (e) => {
-    e.preventDefault();
+  const handleFileSelect = (event) => {
+    const files = Array.from(event.target.files);
+    const newPreviewUrls = files.map((file) => URL.createObjectURL(file));
+
+    setSelectedFiles((prev) => [...prev, ...files]);
+    setPreviewUrls((prev) => [...prev, ...newPreviewUrls]);
+  };
+
+  const removeFile = (index) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+    setPreviewUrls((prev) => {
+      URL.revokeObjectURL(prev[index]);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+  
+
+  const handleCreateAlbum = async () => {
     try {
+      setIsLoading(true);
       const userId = localStorage.getItem("userId");
       const token = localStorage.getItem("token");
-      
-      if (!userId) {
-        alert("User ID tidak ditemukan. Silakan login ulang.");
+  
+      // Validasi title terlebih dahulu
+      if (!title || title.trim() === "") {
+        alert("Judul album harus diisi");
+        setIsLoading(false);
         return;
       }
   
-      const albumData = {
-        title: title.trim(),
-        description: description.trim(),
-        user_id: parseInt(userId, 10),
-      };
+      // Validasi userId dan token
+      if (!userId || !token) {
+        alert("Sesi anda telah berakhir. Silakan login kembali.");
+        navigate("/login");
+        return;
+      }
   
-      const response = await axios.post(
+      // Lanjutkan dengan pembuatan album jika semua validasi passed
+      const albumResponse = await axios.post(
         "http://localhost:5000/api/albums",
-        albumData,
+        {
+          title: title.trim(),
+          description: description.trim(),
+          user_id: parseInt(userId, 10),
+        },
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
           },
         }
       );
   
-      // Pastikan respons memiliki field `album`
-      if (!response.data.album || !response.data.album.album_id) {
-        throw new Error("Respons server tidak valid.");
+      const albumId = albumResponse.data.album.album_id;
+  
+      // Upload foto jika ada
+      if (selectedFiles.length > 0) {
+        const formData = new FormData();
+        selectedFiles.forEach((file) => {
+          formData.append("photos", file);
+        });
+        formData.append("album_id", albumId);
+  
+        await axios.post(
+          "http://localhost:5000/api/galleries/upload",
+          formData,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
       }
   
-      setCreatedAlbumId(response.data.album.album_id);
-      setStep(2);
-      fetchUserGalleries();
+      alert("Album berhasil dibuat!");
+      navigate("/profile");
     } catch (error) {
-      console.error("Error saat membuat album:", error.response?.data || error.message);
-      alert("Gagal membuat album: " + (error.response?.data?.error || error.message));
-    }
-  };
-  
-  const fetchUserGalleries = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const userId = localStorage.getItem("userId");
-      
-      console.log('Fetching galleries for user:', userId); // Debug log
-      
-      const response = await axios.get(
-        `http://localhost:5000/api/galleries/${userId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
+      console.error("Error creating album:", error);
+      alert(
+        error.response?.data?.error || 
+        "Terjadi kesalahan saat membuat album. Silakan coba lagi."
       );
-      setUserGalleries(response.data);
-    } catch (error) {
-      console.error('Error fetching galleries:', error);
-      alert("Error mengambil galeri: " + error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
-
-  // Tambahkan fungsi-fungsi yang hilang
-const handlePhotoSelection = (photoId) => {
-  setSelectedPhotos(prev => 
-    prev.includes(photoId) 
-      ? prev.filter(id => id !== photoId)
-      : [...prev, photoId]
-  );
-};
-
-const handleFinish = async () => {
-  try {
-    const token = localStorage.getItem("token");
-    
-    // Kirim data foto yang dipilih ke endpoint yang sesuai
-    await axios.post(
-      `http://localhost:5000/api/albums/${createdAlbumId}/photos`,
-      { photoIds: selectedPhotos },
-      {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    alert("Album berhasil dibuat!");
-    navigate("/albums"); // Arahkan ke halaman daftar album
-  } catch (error) {
-    console.error("Error menambahkan foto:", error);
-    alert("Error menambahkan foto ke album: " + 
-      (error.response?.data?.error || error.message));
-  }
-};
 
   // ... rest of the component code remains the same ...
-
+  
   return (
-    <div className="container mx-auto mt-10 px-4">
-      {step === 1 ? (
-        // Form pembuatan album
-        <div>
-          <h1 className="text-2xl font-bold">Buat Album Baru</h1>
-          <form onSubmit={handleCreateAlbum} className="mt-6 space-y-4">
-            <div>
-              <label className="block text-sm font-medium">Judul Album</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-                className="w-full p-2 border rounded-md"
+    <div className="min-h-screen bg-white">
+      {/* Header */}
+      <div className="flex items-center p-4">
+        <button
+          onClick={() => navigate(-1)}
+          className="text-gray-600 hover:text-gray-900">
+          <FontAwesomeIcon icon={faArrowLeft} className="w-5 h-5" />
+        </button>
+        <h1 className="ml-4 mb-1 text-xl font-medium">Buat Album Baru</h1>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-4xl mx-auto p-4">
+        {/* Form Section */}
+        <div className="mb-8">
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Tambahkan judul"
+            className="w-full text-2xl font-medium border-b-2 border-blue-500 focus:outline-none focus:border-blue-600 pb-2 mb-4"
+          />
+
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Tambahkan deskripsi album (opsional)"
+            className="w-full mt-4 p-2 border rounded-lg focus:outline-none focus:border-blue-500 min-h-[100px] text-gray-700 resize-none"
+          />
+        </div>
+
+        {selectedFiles.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="max-w-xs mx-auto">
+              <img
+                src="/src/assets/albums.png"
+                alt="Album kosong"
+                className="w-full mb-4"
               />
+              <h2 className="text-lg font-medium mb-4">Album Masih Kosong</h2>  
+              <label className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 cursor-pointer">
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                Tambahkan Foto
+              </label>
             </div>
-            <div>
-              <label className="block text-sm font-medium">Deskripsi</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full p-2 border rounded-md"
-              />
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
+              {previewUrls.map((url, index) => (
+                <div key={index} className="relative aspect-square group">
+                  <img
+                    src={url}
+                    alt={`Preview ${index + 1}`}
+                    className="w-full h-full object-cover rounded-lg"
+                  />
+                  <button
+                    onClick={() => removeFile(index)}
+                    className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <FontAwesomeIcon icon={faXmark} className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+              <label className="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 transition-colors">
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <FontAwesomeIcon
+                  icon={faImage}
+                  className="w-8 h-8 text-gray-400 mb-2"
+                />
+                <span className="text-sm text-gray-500">Tambah Foto Lainnya</span>
+              </label>
             </div>
-            <div className="pt-4">
+
+            <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t">
               <button
-                type="submit"
-                className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              >
-                Lanjut ke Pemilihan Foto
+                onClick={handleCreateAlbum}
+                disabled={isLoading || !title.trim()}
+                className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed">
+                {isLoading ? "Sedang membuat album..." : `Buat Album (${selectedFiles.length} foto)`}
               </button>
             </div>
-          </form>
-        </div>
-      ) : (
-        // Bagian pemilihan foto
-        <div>
-          <h1 className="text-2xl font-bold">Pilih Foto untuk Album</h1>
-          <p className="mt-2 text-gray-600">
-            Pilih foto-foto yang ingin ditambahkan ke album "{title}"
-          </p>
-          
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-6">
-            {userGalleries.map((gallery) => (
-              <div
-                key={gallery.id}
-                className={`relative cursor-pointer group ${
-                  selectedPhotos.includes(gallery.id) ? 'ring-2 ring-blue-500' : ''
-                }`}
-                onClick={() => handlePhotoSelection(gallery.id)}
-              >
-                <img
-                  src={`http://localhost:5000/${gallery.image_url}`}
-                  alt={gallery.title}
-                  className="w-full h-48 object-cover rounded-lg"
-                />
-                <div className={`absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center ${
-                  selectedPhotos.includes(gallery.id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                } transition-opacity`}>
-                  <span className="text-white text-lg">
-                    {selectedPhotos.includes(gallery.id) ? '✓' : '+'}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-6 flex justify-end space-x-4">
-            <button
-              onClick={() => setStep(1)}
-              className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-            >
-              Kembali
-            </button>
-            <button
-              onClick={handleFinish}
-              disabled={selectedPhotos.length === 0}
-              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
-            >
-              Selesai ({selectedPhotos.length} foto dipilih)
-            </button>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </div>
     </div>
   );
 };

@@ -28,7 +28,7 @@ const App = () => {
         <Route path="/edit-album/:id" element={<EditAlbum />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/admin-dashboard" element={<DashboardAdmin />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+
         <Route path="/gallery/:id" element={<Deskripsi />} />
       </Routes>
     </Router>

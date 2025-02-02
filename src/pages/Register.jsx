@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faX } from "@fortawesome/free-solid-svg-icons";
 
 const Register = () => {
   const [username, setUsername] = useState("");
@@ -45,15 +47,18 @@ const Register = () => {
 
       {/* Seksi Kanan */}
       <div className="flex-1 flex items-center justify-center bg-white">
-        <div className="w-full max-w-md p-6 rounded-lg shadow-md">
-          <h2 className="text-3xl font-bold font-lora text-center mb-6">
-            Registrasi
-          </h2>
+        <FontAwesomeIcon
+          icon={faX}
+          className="absolute top-4 right-4 text-gray-600 hover:bg-gray-200 px-4 py-3 rounded-full text-xl cursor-pointer"
+          onClick={() => navigate("/")}
+        />
+        <div className="w-full max-w-md p-6 rounded-xl shadow-md">
+          <h2 className="text-3xl font-bold text-center mb-6">Registrasi</h2>
           {error && <div className="text-red-500 mb-4">{error}</div>}
           <form onSubmit={handleRegister}>
             <div className="mb-4">
               <label
-                className="block text-sm font-medium mb-1"
+                className="block text-sm font-medium mb-2"
                 htmlFor="username">
                 Nama Pengguna
               </label>
@@ -62,12 +67,12 @@ const Register = () => {
                 id="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="border rounded w-full py-2 px-3"
+                className="border rounded-full w-full py-3 px-3"
                 required
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1" htmlFor="email">
+              <label className="block text-sm font-medium mb-2" htmlFor="email">
                 Email
               </label>
               <input
@@ -75,13 +80,13 @@ const Register = () => {
                 id="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="border rounded w-full py-2 px-3"
+                className="border rounded-full w-full py-3 px-3"
                 required
               />
             </div>
             <div className="mb-4">
               <label
-                className="block text-sm font-medium mb-1"
+                className="block text-sm font-medium mb-2"
                 htmlFor="password">
                 Kata Sandi
               </label>
@@ -90,14 +95,14 @@ const Register = () => {
                 id="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="border rounded w-full py-2 px-3"
+                className="border rounded-full w-full py-3 px-3"
                 required
               />
             </div>
             {/* {isAdmin && (
               <div className="mb-4">
                 <label
-                  className="block text-sm font-medium mb-1"
+                  className="block text-sm font-medium mb-2"
                   htmlFor="adminCode">
                   Kode Admin
                 </label>
@@ -106,7 +111,7 @@ const Register = () => {
                   id="adminCode"
                   value={adminCode}
                   onChange={(e) => setAdminCode(e.target.value)}
-                  className="border rounded w-full py-2 px-3"
+                  className="border rounded w-full py-3 px-3"
                   required
                 />
               </div>
@@ -121,7 +126,7 @@ const Register = () => {
             </div> */}
             <button
               type="submit"
-              className="bg-blue-500 text-white py-2 rounded w-full hover:bg-blue-600">
+              className="bg-[#567c8d] text-white py-3 rounded-full w-full hover:bg-[#455272]">
               Registrasi
             </button>
           </form>
@@ -139,9 +144,7 @@ const Register = () => {
             onClick={handleNavigateToLogin}
             className="flex flex-col items-center justify-center w-full border-none rounded-lg py-2 bg-transparent">
             <span className="text-gray-500">Already have an account??</span>
-            <span className="text-black font-semibold text-decoration-line: underline font-lora">
-              Login Now
-            </span>
+            <span className="text-black font-semibold">Login Now</span>
           </button>
         </div>
       </div>

@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHeart as solidHeart } from "@fortawesome/free-solid-svg-icons";
 import { faHeart as regularHeart } from "@fortawesome/free-regular-svg-icons";
+import { faPaperPlane, faX } from "@fortawesome/free-solid-svg-icons";
 
 const GalleryDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [gallery, setGallery] = useState(null);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
@@ -40,20 +42,23 @@ const GalleryDetail = () => {
 
     const fetchLikes = async () => {
       try {
-        const response = await axios.get(
+        const user_id = localStorage.getItem("user_id");
+
+        const likesResponse = await axios.get(
           `http://localhost:5000/api/likes/count/${id}`
         );
-        setLikes(response.data.like_count);
+        setLikes(likesResponse.data.like_count);
 
-        const userLiked = await axios.get(
+        const userLikedResponse = await axios.post(
           `http://localhost:5000/api/likes/user/${id}`,
+          { user_id },
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
             },
           }
         );
-        setLiked(userLiked.data.liked);
+        setLiked(userLikedResponse.data.liked);
       } catch (error) {
         console.error("Error fetching likes:", error);
       }
@@ -73,30 +78,24 @@ const GalleryDetail = () => {
       }
 
       if (liked) {
-        // Jika sudah like, maka hapus like (unlike)
-        const response = await axios.delete(
-          `http://localhost:5000/api/likes/user/${id}?user_id=${user_id}`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }
-        );
-        setLikes((prev) => prev - 1); // Decrement likes count
+        await axios.delete(`http://localhost:5000/api/likes/${id}`, {
+          data: { user_id },
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        });
+        setLikes((prev) => prev - 1);
       } else {
-        // Jika belum like, maka tambahkan like
-        const response = await axios.post(
-          `http://localhost:5000/api/likes/`,
-          { gallery_id: id, user_id }, // Kirimkan gallery_id dan user_id untuk menambahkan like
+        await axios.post(
+          `http://localhost:5000/api/likes`,
+          { gallery_id: id, user_id },
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
             },
           }
         );
-        setLikes((prev) => prev + 1); // Increment likes count
+        setLikes((prev) => prev + 1);
       }
-      setLiked(!liked); // Toggle state liked
+      setLiked(!liked);
     } catch (error) {
       console.error("Error toggling like:", error);
     }
@@ -133,7 +132,14 @@ const GalleryDetail = () => {
 
   return (
     <div className="flex justify-center items-center bg-[#faf8f4] h-screen">
-      <div className="flex max-w-5xl w-full bg-white shadow-lg rounded-lg overflow-hidden">
+      <div className="flex max-w-5xl w-full bg-white shadow-lg rounded-xl overflow-hidden relative">
+        {/* Tombol Close (X) di pojok kiri atas */}
+        <FontAwesomeIcon
+          icon={faX}
+          className="absolute top-4 left-4 text-gray-600 hover:bg-gray-200 px-3 py-2 rounded-full text-xl cursor-pointer"
+          onClick={() => navigate(-1)}
+        />
+
         {/* Bagian Gambar */}
         <div className="w-2/5">
           <img
@@ -142,17 +148,19 @@ const GalleryDetail = () => {
             className="w-full h-full object-cover"
           />
         </div>
+
         {/* Bagian Detail dan Komentar */}
         <div className="w-3/5 p-6 relative">
           {/* Tombol Like */}
           <button
             onClick={handleLikeToggle}
-            className={`absolute top-6 right-6 ${
+            className={`absolute top-6 right-8 ${
               liked ? "text-red-500" : "text-gray-500"
             } text-xl hover:scale-110 transition-transform`}>
             <FontAwesomeIcon icon={liked ? solidHeart : regularHeart} />
             <span className="ml-2">{likes}</span>
           </button>
+
           {/* Detail */}
           <div>
             <h1 className="text-2xl font-bold">{gallery.title}</h1>
@@ -161,41 +169,47 @@ const GalleryDetail = () => {
               Posted by : {gallery.username || "Pengguna Tidak Diketahui"}
             </div>
           </div>
+
           {/* Komentar */}
           <div className="mt-6">
             <h2 className="text-lg font-bold mb-2">
               {comments.length} Komentar
             </h2>
+
             {/* Form Tambah Komentar */}
             <form onSubmit={handleAddComment} className="relative mb-4">
-              <textarea
-                className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Tambahkan komentar..."
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleAddComment(e);
-                  }
-                }}
-                rows={3}
-              />
-              {error && <p className="text-red-500 mt-2">{error}</p>}
+              <div className="relative">
+                <textarea
+                  className="w-full p-3 pr-12 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Tambahkan komentar..."
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault(); // Mencegah pembuatan baris baru
+                      handleAddComment(e); // Memanggil fungsi untuk mengirim komentar
+                    }
+                  }}
+                  rows={3}
+                />
+                {/* Tombol Kirim di dalam Placeholder (Textarea) */}
+                <button
+                  type="submit"
+                  className="absolute top-3 right-3 text-gray-500 hover:text-blue-500">
+                  <FontAwesomeIcon icon={faPaperPlane} className="text-lg" />
+                </button>
+              </div>
             </form>
+            {error && <p className="text-red-500 mt-2">{error}</p>}
+
             {/* Daftar Komentar */}
-            <div
-              className="space-y-4 max-h-60 overflow-y-auto border-t border-gray-200 pt-4"
-              style={{
-                scrollbarWidth: "thin",
-                scrollbarColor: "#888 #f1f1f1",
-              }}>
+            <div className="space-y-4 max-h-60 overflow-y-auto border-t border-gray-200 pt-4">
               {comments.map((comment) => (
                 <div
-                  key={comment.id || comment.createdAt}
+                  key={comment.id}
                   className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                   <span className="text-sm text-gray-500">
-                    {comment.User?.username || "Anonim"} {/* Akses username */}
+                    {comment.User?.username || "Anonim"}
                   </span>
                   <p className="text-gray-700">{comment.comment}</p>
                 </div>
