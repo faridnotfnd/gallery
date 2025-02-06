@@ -20,7 +20,6 @@ const CreateAlbum = () => {
   const handleFileSelect = (event) => {
     const files = Array.from(event.target.files);
     const newPreviewUrls = files.map((file) => URL.createObjectURL(file));
-
     setSelectedFiles((prev) => [...prev, ...files]);
     setPreviewUrls((prev) => [...prev, ...newPreviewUrls]);
   };
@@ -36,60 +35,50 @@ const CreateAlbum = () => {
 
   const handleCreateAlbum = async () => {
     try {
-      setIsLoading(true);
-      const userId = localStorage.getItem("userId");
+      const userId = localStorage.getItem("user_id");
       const token = localStorage.getItem("token");
+      
+      console.log("User ID:", userId); // Debug: log user ID
+      console.log("Token:", token); // Debug: log token
   
-      // Validasi title terlebih dahulu
-      if (!title || title.trim() === "") {
-        alert("Judul album harus diisi");
-        setIsLoading(false);
-        return;
-      }
-  
-      // Validasi userId dan token
-      if (!userId || !token) {
-        alert("Sesi anda telah berakhir. Silakan login kembali.");
+      // Additional detailed validation
+      if (!token) {
+        console.error("No token found");
+        alert("Token tidak ditemukan. Silakan login kembali.");
         navigate("/login");
         return;
       }
   
-      // Lanjutkan dengan pembuatan album jika semua validasi passed
-      const albumResponse = await axios.post(
+      if (!userId) {
+        console.error("No user ID found");
+        alert("User ID tidak ditemukan. Silakan login kembali.");
+        navigate("/login");
+        return;
+      }
+  
+      setIsLoading(true);
+    
+      // Gunakan FormData untuk mengirim album + foto sekaligus
+      const formData = new FormData();
+      formData.append("title", title.trim());
+      formData.append("description", description.trim());
+      formData.append("user_id", parseInt(userId, 10));
+  
+      selectedFiles.forEach((file) => {
+        formData.append("photos", file);
+      });
+  
+      // Kirim data album + foto ke backend
+      const response = await axios.post(
         "http://localhost:5000/api/albums",
-        {
-          title: title.trim(),
-          description: description.trim(),
-          user_id: parseInt(userId, 10),
-        },
+        formData,
         {
           headers: {
             Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
           },
         }
       );
-  
-      const albumId = albumResponse.data.album.album_id;
-  
-      // Upload foto jika ada
-      if (selectedFiles.length > 0) {
-        const formData = new FormData();
-        selectedFiles.forEach((file) => {
-          formData.append("photos", file);
-        });
-        formData.append("album_id", albumId);
-  
-        await axios.post(
-          "http://localhost:5000/api/galleries/upload",
-          formData,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "multipart/form-data",
-            },
-          }
-        );
-      }
   
       alert("Album berhasil dibuat!");
       navigate("/profile");
@@ -103,8 +92,6 @@ const CreateAlbum = () => {
       setIsLoading(false);
     }
   };
-
-  // ... rest of the component code remains the same ...
   
   return (
     <div className="min-h-screen bg-white">
@@ -112,10 +99,10 @@ const CreateAlbum = () => {
       <div className="flex items-center p-4">
         <button
           onClick={() => navigate(-1)}
-          className="text-gray-600 hover:text-gray-900">
+          className="text-gray-600 hover:bg-gray-200 px-3 py-3 rounded-full text-sm font-medium">
           <FontAwesomeIcon icon={faArrowLeft} className="w-5 h-5" />
         </button>
-        <h1 className="ml-4 mb-1 text-xl font-medium">Buat Album Baru</h1>
+        <h1 className="ml-4 mb-1 text-gray-600 text-xl font-medium">Buat Album Baru</h1>
       </div>
 
       {/* Main Content */}

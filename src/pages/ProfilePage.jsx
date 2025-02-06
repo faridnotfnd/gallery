@@ -2,7 +2,6 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import Dropzone from "react-dropzone";
 import { faPaperPlane, faX } from "@fortawesome/free-solid-svg-icons";
 import {
   faArrowRightFromBracket,
@@ -59,30 +58,6 @@ const ProfilePage = () => {
     fetchGalleries();
   }, []);
 
-  useEffect(() => {
-    const fetchAlbums = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const userId = localStorage.getItem("userId");
-        const response = await axios.get(
-          `http://localhost:5000/api/albums/user/${userId}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        setAlbums(response.data);
-      } catch (error) {
-        console.error("Error fetching albums:", error);
-      }
-    };
-
-    fetchAlbums();
-  }, []);
-
-  const handleGalleryClick = (galleryId) => {
-    navigate(`/gallery/${galleryId}`); // Arahkan ke detail galeri
-  };
-
   const fetchUserGalleries = async (userId) => {
     try {
       const token = localStorage.getItem("token");
@@ -98,6 +73,62 @@ const ProfilePage = () => {
     } catch (error) {
       console.error("Error fetching user galleries:", error);
     }
+  };
+
+  useEffect(() => {
+    const fetchAlbums = async (userId, token) => {
+      try {
+        const response = await axios.get(`http://localhost:5000/api/albums/user/${userId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setAlbums(response.data);
+      } catch (error) {
+        console.error("Error fetching albums:", error);
+      }
+    };
+  
+    const handleCreateAlbum = async () => {
+      if (!title.trim()) {
+        alert("Judul album harus diisi!");
+        return;
+      }
+  
+      try {
+        setIsLoading(true);
+        const token = localStorage.getItem("token");
+        const userId = localStorage.getItem("user_id");
+  
+        const response = await axios.post(
+          "http://localhost:5000/api/albums",
+          {
+            title: title.trim(),
+            description: description.trim(),
+            user_id: parseInt(userId, 10),
+          },
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+  
+        setShowCreateAlbumModal(false);
+        setTitle("");
+        setDescription("");
+  
+        // Refresh daftar album
+        fetchAlbums(userId, token);
+      } catch (error) {
+        console.error("Error creating album:", error);
+        alert("Gagal membuat album. Silakan coba lagi.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchAlbums();
+  }, []);
+
+  const handleGalleryClick = (galleryId) => {
+    navigate(`/gallery/${galleryId}`); // Arahkan ke detail galeri
   };
 
   const handleUpload = async (e) => {
@@ -143,9 +174,9 @@ const ProfilePage = () => {
     }
   };
 
-  // Menampilkan preview gambar setelah memilih file
-  const handleDrop = (acceptedFiles) => {
-    setSelectedFiles(acceptedFiles);
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    setSelectedFiles(files);
   };
 
   const handleLogout = () => {
@@ -168,10 +199,7 @@ const ProfilePage = () => {
         <button
           onClick={() => setShowLogoutModal(true)}
           className="text-gray-600 hover:bg-gray-200 px-3  py-3 rounded-full text-sm font-medium">
-          <FontAwesomeIcon
-            icon={faArrowRightFromBracket}
-            className="w-6 h-6"
-          />
+          <FontAwesomeIcon icon={faArrowRightFromBracket} className="w-6 h-6" />
         </button>
       </div>
 
@@ -254,7 +282,6 @@ const ProfilePage = () => {
             <div
               className="relative bg-white p-6 rounded-xl shadow-lg max-w-md w-full text-center"
               onClick={(e) => e.stopPropagation()}>
-              {/* Tombol Close (X) di pojok kiri atas */}
               <FontAwesomeIcon
                 icon={faX}
                 className="absolute top-4 right-4 w-4 h-5 text-gray-600 hover:bg-gray-200 px-2 py-1 rounded-full text-xl cursor-pointer"
@@ -263,7 +290,6 @@ const ProfilePage = () => {
 
               <h2 className="text-lg font-semibold mb-4">Upload Gambar</h2>
 
-              {/* Input Title */}
               <input
                 type="text"
                 placeholder="Judul"
@@ -272,7 +298,6 @@ const ProfilePage = () => {
                 className="w-full p-2 mb-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
 
-              {/* Input Description */}
               <textarea
                 placeholder="Deskripsi (Opsional)"
                 value={description}
@@ -280,26 +305,17 @@ const ProfilePage = () => {
                 className="w-full p-2 mb-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 rows="3"></textarea>
 
-              {/* Pesan Error Jika Ada */}
               {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
 
-              {/* Kondisi untuk menampilkan Dropzone atau Preview */}
-              {selectedFiles.length === 0 ? (
-                // Dropzone muncul jika belum ada file yang dipilih
-                <Dropzone onDrop={handleDrop}>
-                  {({ getRootProps, getInputProps }) => (
-                    <div
-                      {...getRootProps()}
-                      className="border-2 border-dashed p-16 rounded-lg cursor-pointer bg-gray-100">
-                      <input {...getInputProps()} />
-                      <p className="text-gray-500">
-                        Seret dan lepaskan file di sini atau klik untuk memilih
-                      </p>
-                    </div>
-                  )}
-                </Dropzone>
-              ) : (
-                // Preview muncul setelah file dipilih
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleFileChange}
+                className="w-full p-2 mb-3 border border-gray-300 rounded-md"
+              />
+
+              {selectedFiles.length > 0 && (
                 <div className="flex flex-col items-center">
                   <img
                     src={URL.createObjectURL(selectedFiles[0])}
@@ -314,7 +330,6 @@ const ProfilePage = () => {
                 </div>
               )}
 
-              {/* Tombol Upload */}
               <button
                 onClick={handleUpload}
                 className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-700">
@@ -356,26 +371,36 @@ const ProfilePage = () => {
         )}
 
         {activeTab === "album" && (
-          <div className="grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {albums.length > 0 ? (
               albums.map((album) => (
                 <div
                   key={album.id}
                   className="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                  onClick={() => navigate(`/album/${album.id}`)}>
+                  onClick={() => {
+                    console.log("Album ID yang diklik:", album.album_id); // Debugging
+                    if (album.album_id) {
+                      navigate(`/album/${album.album_id}`);
+                    } else {
+                      console.error("Album ID tidak ditemukan!");
+                    }
+                  }}>
                   <div className="aspect-w-16 aspect-h-12 bg-gray-100">
                     <img
                       src={
-                        album.cover_photo ||
-                        "https://via.placeholder.com/300x200"
+                        album.cover_photo
+                          ? `http://localhost:5000/${album.cover_photo}`
+                          : "https://via.placeholder.com/300x200"
                       }
                       alt={album.title}
                       className="w-full h-full object-cover"
                     />
                   </div>
                   <div className="p-4">
-                    <h3 className="font-medium text-gray-900">{album.title}</h3>
-                    <p className="text-sm text-gray-500 mt-1">
+                    <h3 className="font-medium text-gray-900 truncate">
+                      {album.title}
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-1 line-clamp-2">
                       {album.description}
                     </p>
                   </div>

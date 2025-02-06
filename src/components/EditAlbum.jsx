@@ -1,71 +1,77 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import axios from "axios";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 
 const EditAlbum = () => {
-  const { id } = useParams();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const { albumId } = useParams();
   const navigate = useNavigate();
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [previewUrls, setPreviewUrls] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const token = localStorage.getItem("token");
 
-  useEffect(() => {
-    const fetchAlbum = async () => {
-      try {
-        const response = await axios.get(`/api/albums/${id}`);
-        setTitle(response.data.title);
-        setDescription(response.data.description);
-      } catch (error) {
-        alert("Gagal memuat data album");
-      }
-    };
-    fetchAlbum();
-  }, [id]);
+  const handleFileSelect = (event) => {
+    const files = Array.from(event.target.files);
+    const newPreviewUrls = files.map((file) => URL.createObjectURL(file));
+    setSelectedFiles((prev) => [...prev, ...files]);
+    setPreviewUrls((prev) => [...prev, ...newPreviewUrls]);
+  };
 
-  const handleUpdate = async (e) => {
-    e.preventDefault();
+  const handleUploadPhotos = async () => {
+    if (selectedFiles.length === 0) {
+      alert("Silakan pilih foto terlebih dahulu.");
+      return;
+    }
+
     try {
-      const userId = localStorage.getItem("userId");
-      await axios.put(`/api/albums/${id}`, {
-        title,
-        description,
-        user_id: userId,
+      setIsLoading(true);
+
+      const formData = new FormData();
+      selectedFiles.forEach((file) => {
+        formData.append("photos", file);
       });
-      alert("Album berhasil diperbarui!");
-      navigate("/");
+
+      await axios.post(`http://localhost:5000/api/albums/${albumId}/photos`, formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      alert("Foto berhasil ditambahkan!");
+      navigate("/profile");
     } catch (error) {
-      alert("Terjadi kesalahan: " + error.response.data.error);
+      console.error("Error uploading photos:", error);
+      alert("Gagal mengunggah foto.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="container mx-auto mt-10">
-      <h1 className="text-2xl font-bold">Edit Album</h1>
-      <form onSubmit={handleUpdate} className="mt-6 space-y-4">
-        <div>
-          <label className="block text-sm font-medium">Judul Album</label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-            className="w-full p-2 border rounded-md"
-          />
+    <div className="p-4">
+      <h1 className="text-xl font-bold mb-4">Tambah Foto ke Album</h1>
+
+      <label className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 cursor-pointer">
+        <input type="file" multiple accept="image/*" onChange={handleFileSelect} className="hidden" />
+        Pilih Foto
+      </label>
+
+      {previewUrls.length > 0 && (
+        <div className="grid grid-cols-3 gap-4 mt-4">
+          {previewUrls.map((url, index) => (
+            <img key={index} src={url} alt="Preview" className="w-full h-32 object-cover rounded-lg" />
+          ))}
         </div>
-        <div>
-          <label className="block text-sm font-medium">Deskripsi</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="w-full p-2 border rounded-md"
-          />
-        </div>
-        <button
-          type="submit"
-          className="px-4 py-2 bg-blue-500 text-white rounded-md"
-        >
-          Perbarui Album
-        </button>
-      </form>
+      )}
+
+      <button
+        onClick={handleUploadPhotos}
+        disabled={isLoading || selectedFiles.length === 0}
+        className="mt-4 bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 disabled:bg-gray-300"
+      >
+        {isLoading ? "Mengunggah..." : "Unggah Foto"}
+      </button>
     </div>
   );
 };
