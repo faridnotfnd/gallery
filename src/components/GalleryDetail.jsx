@@ -5,11 +5,13 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHeart as solidHeart } from "@fortawesome/free-solid-svg-icons";
 import { faHeart as regularHeart } from "@fortawesome/free-regular-svg-icons";
 import { faPaperPlane, faX } from "@fortawesome/free-solid-svg-icons";
-import { faEllipsisV } from "@fortawesome/free-solid-svg-icons";
+import { faEllipsisH } from "@fortawesome/free-solid-svg-icons";
+import { faDownload } from "@fortawesome/free-solid-svg-icons";
 
 const GalleryDetail = () => {
-  const userId =
-    localStorage.getItem("userId") || localStorage.getItem("user_id");
+  const userId = parseInt(
+    localStorage.getItem("userId") || localStorage.getItem("user_id")
+  );
   const { id } = useParams();
   const navigate = useNavigate();
   const [gallery, setGallery] = useState(null);
@@ -35,7 +37,25 @@ const GalleryDetail = () => {
         const response = await axios.get(
           `http://localhost:5000/api/galleries/${id}`
         );
-        setGallery(response.data);
+        if (response.data) {
+          // Transform user_id to number immediately when setting gallery data
+          const galleryData = {
+            ...response.data,
+            user_id: parseInt(response.data.user_id),
+          };
+          setGallery(galleryData);
+
+          // Debug logs dengan tipe data
+          console.log("Gallery Data:", galleryData);
+          console.log("Current userId:", userId, "Type:", typeof userId);
+          console.log(
+            "Gallery user_id:",
+            galleryData.user_id,
+            "Type:",
+            typeof galleryData.user_id
+          );
+          console.log("Are IDs equal?", userId === galleryData.user_id);
+        }
       } catch (error) {
         console.error("Error fetching gallery details:", error);
       }
@@ -166,12 +186,43 @@ const GalleryDetail = () => {
     }
   };
 
+  // Add function to handle image download
+  const handleDownload = async () => {
+    try {
+      const response = await axios({
+        url: `http://localhost:5000/${gallery.image_url}`,
+        method: "GET",
+        responseType: "blob",
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      // Extract original filename from image_url or use a default name
+      const filename = gallery.image_url.split("/").pop() || "image.jpg";
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error downloading image:", error);
+    }
+  };
   if (!gallery) return <div></div>;
+  // Explicit type conversion and comparison
+  const isOwner = Number(userId) === Number(gallery.user_id);
+  console.log("Is owner check:", isOwner, {
+    userId: Number(userId),
+    userIdType: typeof Number(userId),
+    galleryUserId: Number(gallery.user_id),
+    galleryUserIdType: typeof Number(gallery.user_id),
+  });
 
   return (
     <div className="flex justify-center items-center bg-[#faf8f4] h-screen">
       <div className="flex max-w-5xl w-full bg-white shadow-lg rounded-xl overflow-hidden relative">
-        {/* Tombol Close (X) di pojok kiri atas */}
+        {/* Tombol Close (X) */}
         <FontAwesomeIcon
           icon={faX}
           className="absolute top-4 left-4 text-gray-600 hover:bg-gray-200 px-3 py-2.5 rounded-full text-xl cursor-pointer"
@@ -190,38 +241,58 @@ const GalleryDetail = () => {
         {/* Bagian Detail dan Komentar */}
         <div className="w-3/5 p-6 relative">
           {/* Tombol Elipsis */}
-          {gallery.user_id === userId && (
-            <div className="absolute top-6 right-8 border border-red-500">
-              <button
-                onClick={() => setShowOptions(!showOptions)}
-                className="text-gray-900 text-xl hover:scale-110 transition-transform">
-                <FontAwesomeIcon icon={faEllipsisV} />
-              </button>
+          <div className="absolute top-3 right-8 z-50">
+            <button
+              onClick={() => setShowOptions(!showOptions)}
+              className="text-gray-600 text-3xl hover:scale-110 transition-transform p-2">
+              <FontAwesomeIcon icon={faEllipsisH} />
+            </button>
 
-              {showOptions && (
-                <div className="absolute right-0 mt-2 bg-white shadow-md rounded-md py-2 w-48">
-                  <button
-                    onClick={() => {
-                      setEditTitle(gallery.title);
-                      setEditDescription(gallery.description);
-                      setShowEditModal(true);
-                    }}
-                    className="block w-full text-left px-4 py-2 hover:bg-gray-100">
-                    Edit Galeri
-                  </button>
-                  <button
-                    onClick={handleDeleteGallery}
-                    className="block w-full text-left px-4 py-2 text-red-600 hover:bg-gray-100">
-                    Hapus Galeri
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
+            {showOptions && (
+              <div className="absolute right-0 mt-2 bg-white shadow-lg rounded-xl w-48">
+                {isOwner ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        setEditTitle(gallery.title);
+                        setEditDescription(gallery.description);
+                        setShowEditModal(true);
+                        setShowOptions(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 hover:bg-gray-100">
+                      Edit Galeri
+                    </button>
+                    <button
+                      onClick={handleDeleteGallery}
+                      className="block w-full text-left px-4 py-2 text-red-600 hover:bg-gray-100">
+                      Hapus Galeri
+                    </button>
+                  </>
+                ) : null}
+                <button
+                  onClick={() => {
+                    handleDownload();
+                    setShowOptions(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 hover:bg-gray-100">
+                  <FontAwesomeIcon icon={faDownload} className="mr-2" />
+                  Unduh Gambar
+                </button>
+              </div>
+            )}
+          </div>
 
           {showEditModal && (
-            <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-              <div className="bg-white p-6 rounded-xl shadow-lg max-w-md w-full">
+            <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-10">
+              <div
+                className="relative bg-white p-6 rounded-xl shadow-lg max-w-md w-full text-center"
+                onClick={(e) => e.stopPropagation()}>
+                <FontAwesomeIcon
+                  icon={faX}
+                  className="absolute top-4 right-4 w-4 h-5 text-gray-600 hover:bg-gray-200 px-2 py-1.5 rounded-full text-xl cursor-pointer"
+                  onClick={() => setShowEditModal(false)}
+                />
+
                 <h2 className="text-lg font-semibold mb-4">Edit Galeri</h2>
                 <input
                   type="text"
@@ -236,15 +307,10 @@ const GalleryDetail = () => {
                   className="w-full p-2 mb-3 border rounded-md"
                   placeholder="Deskripsi baru"
                   rows="3"></textarea>
-                <div className="flex justify-end gap-3">
-                  <button
-                    onClick={() => setShowEditModal(false)}
-                    className="px-4 py-2 bg-gray-300 rounded-md">
-                    Batal
-                  </button>
+                <div className="flex justify-center">
                   <button
                     onClick={handleEditGallery}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-md">
+                    className="px-4 py-2 bg-blue-500 text-white rounded-full text-center">
                     Simpan
                   </button>
                 </div>
@@ -254,7 +320,7 @@ const GalleryDetail = () => {
           {/* Tombol Like */}
           <button
             onClick={handleLikeToggle}
-            className={`absolute top-6 right-20 ${
+            className={`absolute top-6 right-24 ${
               liked ? "text-red-500" : "text-gray-500"
             } text-xl hover:scale-110 transition-transform`}>
             <FontAwesomeIcon icon={liked ? solidHeart : regularHeart} />

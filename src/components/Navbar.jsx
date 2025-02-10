@@ -49,16 +49,23 @@ const Navbar = ({ showModal }) => {
                 alt="Profil"
                 className="w-8 h-8 rounded-full border border-gray-300"
               />
-              <span className="text-sm text-gray-700 font-medium">
+              <span className="text-base text-gray-700 font-medium">
                 {username}
               </span>
             </div>
           ) : (
-            <Link
-              to="/login"
-              className="text-sm bg-gray-800 px-6 py-2 rounded-full text-gray-100 font-medium">
-              Login
-            </Link>
+            <>
+              <Link
+                to="/login"
+                className="text-sm bg-gray-800 border-2 border-gray-800 px-6 py-2 rounded-full text-gray-100 font-medium">
+                Login
+              </Link>
+              <Link
+                to="/register"
+                className="text-sm border-[2.5px] border-gray-800 px-6 py-2 rounded-full text-gray-900 hover:text-white hover:bg-gray-900 font-medium">
+                Register
+              </Link>
+            </>
           )}
         </div>
       </div>

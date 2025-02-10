@@ -102,7 +102,6 @@ const CreateAlbum = () => {
           className="text-gray-600 hover:bg-gray-200 px-3 py-3 rounded-full text-sm font-medium">
           <FontAwesomeIcon icon={faArrowLeft} className="w-5 h-5" />
         </button>
-        <h1 className="ml-4 mb-1 text-gray-600 text-xl font-medium">Buat Album Baru</h1>
       </div>
 
       {/* Main Content */}

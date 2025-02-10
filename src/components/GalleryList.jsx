@@ -6,17 +6,16 @@ import "react-lazy-load-image-component/src/effects/blur.css"; // Import effect
 import InfiniteScroll from "react-infinite-scroll-component"; // Tambahkan infinite scroll
 import { motion } from "framer-motion"; // Import framer-motion
 import Masonry from "react-masonry-css";
-import { AnimatePresence } from "framer-motion";
 
 const GalleryList = () => {
   const [galleries, setGalleries] = useState([]);
-  const [page, setPage] = useState(1); // State untuk halaman
+  const [page, setPage] = useState(1); // Mulai dari 0
   const [hasMore, setHasMore] = useState(true); // State apakah masih ada data
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isUser, setIsUser] = useState(false);
   const [showModal, setShowModal] = useState(false); // State untuk modal
   const navigate = useNavigate();
-  const limit = 5; // Menampilkan 5 gambar per halaman
+  const limit = 12; // Menampilkan gambar per halaman
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -32,16 +31,19 @@ const GalleryList = () => {
         })
         .catch((error) => console.error("Error fetching user role:", error));
     }
+    setPage(0); // Reset page ke 0
+    setGalleries([]); // Reset galleries
     fetchGalleries(); // Panggil fetch pertama kali
   }, []);
 
   const fetchGalleries = async () => {
     try {
-      const nextPage = page + 1; // Perbarui nilai sebelum pemanggilan API
-
       const response = await axios.get(
-        `http://localhost:5000/api/galleries?page=${nextPage}&limit=${limit}`
+        `http://localhost:5000/api/galleries?page=${page}&limit=${limit}`
       );
+      
+      console.log('Fetched data:', response.data); // Untuk debugging
+
       const { galleries: newGalleries, totalPages } = response.data;
 
       setGalleries((prev) => {
@@ -49,12 +51,11 @@ const GalleryList = () => {
         const filteredGalleries = newGalleries.filter(
           (gallery) => !existingIds.has(gallery.id)
         );
-
-        return [...prev, ...filteredGalleries]; // Gabungkan tanpa duplikasi
+        return [...prev, ...filteredGalleries];
       });
 
-      setHasMore(nextPage <= totalPages); // Update `hasMore`
-      setPage(nextPage); // Perbarui `page`
+      setHasMore(page < totalPages);
+      setPage(prev => prev + 1);
     } catch (error) {
       console.error("Error fetching galleries:", error);
     }
@@ -108,7 +109,7 @@ const GalleryList = () => {
                 key={gallery.id}
                 src={`http://localhost:5000/${gallery.image_url}`}
                 alt={gallery.title}
-                className="w-full h-auto object-cover rounded-2xl transition-transform duration-300 group-hover:scale-105"
+                className="w-full h-auto object-cover rounded-xl transition-transform duration-300 group-hover:scale-105"
                 effect="blur"
                 loading="lazy"
               />

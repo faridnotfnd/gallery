@@ -22,7 +22,9 @@ const Login = () => {
       const endpoint = isAdmin
         ? "http://localhost:5000/api/auth/admin/login"
         : "http://localhost:5000/api/auth/login";
-      const payload = isAdmin ? { email, password, adminCode } : { email, password };
+      const payload = isAdmin
+        ? { email, password, adminCode }
+        : { email, password };
 
       const response = await axios.post(endpoint, payload);
 
@@ -46,7 +48,9 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row relative" style={{ backgroundColor: "#faf8f4" }}>
+    <div
+      className="min-h-screen flex flex-col lg:flex-row relative"
+      style={{ backgroundColor: "#faf8f4" }}>
       <FontAwesomeIcon
         icon={faX}
         className="absolute top-4 right-4 text-gray-600 hover:bg-gray-200 px-4 py-3 rounded-full text-xl cursor-pointer"
@@ -55,7 +59,10 @@ const Login = () => {
 
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="text-lg leading-relaxed font-lora text-gray-800">
-          <h2 className="text-6xl mb-4">Welcome to Our Cavallery</h2>
+          <h2 className="text-6xl mb-4">
+            <span className="cursor-pointer" onClick={() => setIsAdmin(!isAdmin)}>Welcome</span> to Our
+            Cavallery
+          </h2>
           <p className="text-6xl">Transforming spaces with art and design</p>
         </div>
       </div>
@@ -78,7 +85,9 @@ const Login = () => {
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-2" htmlFor="password">
+              <label
+                className="block text-sm font-medium mb-2"
+                htmlFor="password">
                 Password
               </label>
               <input
@@ -92,7 +101,9 @@ const Login = () => {
             </div>
             {isAdmin && (
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-2" htmlFor="adminCode">
+                <label
+                  className="block text-sm font-medium mb-2"
+                  htmlFor="adminCode">
                   Admin Code
                 </label>
                 <input
@@ -109,15 +120,13 @@ const Login = () => {
               <button
                 type="button"
                 onClick={() => setIsAdmin(!isAdmin)}
-                className="text-[#567c8d]"
-              >
+                className="text-[#567c8d]">
                 Login as {isAdmin ? "User" : "Admin"}
               </button>
             </div>
             <button
               type="submit"
-              className="bg-[#567c8d] text-white py-3 rounded-full w-full hover:bg-[#455272]"
-            >
+              className="bg-[#567c8d] text-white py-3 rounded-full w-full hover:bg-[#455272]">
               Login
             </button>
           </form>
@@ -131,8 +140,7 @@ const Login = () => {
               <button
                 type="button"
                 onClick={handleNavigateToRegister}
-                className="flex flex-col items-center justify-center w-full border-none rounded-lg py-2 bg-transparent"
-              >
+                className="flex flex-col items-center justify-center w-full border-none rounded-lg py-2 bg-transparent">
                 <span className="text-gray-500">Don't have an account?</span>
                 <span className="text-black font-semibold">Register Now</span>
               </button>
