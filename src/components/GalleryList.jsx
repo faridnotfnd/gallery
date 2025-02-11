@@ -81,13 +81,14 @@ const GalleryList = () => {
   };
 
   const breakpointColumnsObj = {
-    default: 4,
-    1100: 3,
-    700: 2,
-    500: 1,
+    default: 5,
+    1400: 4,
+    1300: 3,
+    800: 2,
+    700: 1,
   };
   return (
-    <div className="min-h-screen bg-[#faf8f4] p-6">
+    <div className="min-h-screen bg-[#faf8f4] p-6 pt-20">
       <InfiniteScroll
         dataLength={galleries.length}
         next={fetchGalleries}

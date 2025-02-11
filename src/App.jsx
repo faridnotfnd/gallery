@@ -9,7 +9,7 @@ import Register from "./pages/Register";
 import CreateAlbum from "./pages/BuatAlbum";
 import EditAlbum from "./pages/EditAlbum";
 import ProfilePage from "./pages/ProfilePage";
-import ProfilePagePublic from "./pages/rofilePagePublic";
+import ProfilePagePublic from "./pages/ProfilePagePublic";
 import { library } from "@fortawesome/fontawesome-svg-core";
 import { faHeart as solidHeart } from "@fortawesome/free-solid-svg-icons";
 import { faHeart as regularHeart } from "@fortawesome/free-regular-svg-icons";

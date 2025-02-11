@@ -114,7 +114,7 @@ const ProfilePagePublic = () => {
             ) : (
               <div className="w-full flex justify-center items-center">
                 <p className="text-gray-500 text-lg font-medium">
-                  Pengguna ini belum memiliki galeri.
+                  {/* Pengguna ini belum memiliki galeri. */}
                 </p>
               </div>
             )}
@@ -151,7 +151,7 @@ const ProfilePagePublic = () => {
             ) : (
               <div className="w-full h-full flex justify-center items-center">
                 <p className="text-gray-500 text-lg font-medium">
-                  Pengguna ini belum memiliki album.
+                  {/* Pengguna ini belum memiliki album. */}
                 </p>
               </div>
             )}

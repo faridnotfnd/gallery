@@ -225,7 +225,7 @@ const GalleryDetail = () => {
         {/* Tombol Close (X) */}
         <FontAwesomeIcon
           icon={faX}
-          className="absolute top-4 left-4 text-gray-600 hover:bg-gray-200 px-3 py-2.5 rounded-full text-xl cursor-pointer"
+          className="absolute top-4 left-4 text-gray-600 bg-[#f5efeb] hover:bg-[#2f4156] hover:text-white px-3 py-2.5 rounded-full text-xl cursor-pointer"
           onClick={() => navigate(-1)}
         />
 
@@ -289,7 +289,7 @@ const GalleryDetail = () => {
                 onClick={(e) => e.stopPropagation()}>
                 <FontAwesomeIcon
                   icon={faX}
-                  className="absolute top-4 right-4 w-4 h-5 text-gray-600 hover:bg-gray-200 px-2 py-1.5 rounded-full text-xl cursor-pointer"
+                  className="absolute top-3 right-3 w-4 h-5 text-gray-600 hover:bg-gray-200 px-2 py-1.5 rounded-full text-xl cursor-pointer"
                   onClick={() => setShowEditModal(false)}
                 />
 
