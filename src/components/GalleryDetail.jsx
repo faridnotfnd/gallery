@@ -25,11 +25,15 @@ const GalleryDetail = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     axios
       .get(`http://localhost:5000/api/galleries/${id}`)
-      .then((res) => setGallery(res.data))
+      .then((res) => {
+        console.log("Gallery Data:", res.data); // Log seluruh data yang diterima
+        setGallery(res.data);
+      })
       .catch(() => console.error("Gagal mengambil detail galeri"));
 
     const fetchGalleryDetails = async () => {
@@ -38,23 +42,11 @@ const GalleryDetail = () => {
           `http://localhost:5000/api/galleries/${id}`
         );
         if (response.data) {
-          // Transform user_id to number immediately when setting gallery data
           const galleryData = {
             ...response.data,
             user_id: parseInt(response.data.user_id),
           };
           setGallery(galleryData);
-
-          // Debug logs dengan tipe data
-          console.log("Gallery Data:", galleryData);
-          console.log("Current userId:", userId, "Type:", typeof userId);
-          console.log(
-            "Gallery user_id:",
-            galleryData.user_id,
-            "Type:",
-            typeof galleryData.user_id
-          );
-          console.log("Are IDs equal?", userId === galleryData.user_id);
         }
       } catch (error) {
         console.error("Error fetching gallery details:", error);
@@ -225,7 +217,7 @@ const GalleryDetail = () => {
         {/* Tombol Close (X) */}
         <FontAwesomeIcon
           icon={faX}
-          className="absolute top-4 left-4 text-gray-600 bg-[#f5efeb] hover:bg-[#2f4156] hover:text-white px-3 py-2.5 rounded-full text-xl cursor-pointer"
+          className="absolute top-4 left-4 text-gray-600 bg-[#e2e5e9] hover:bg-gray-300 hover:text-gray-600 px-3 py-2.5 rounded-full text-xl cursor-pointer"
           onClick={() => navigate(-1)}
         />
 
@@ -263,9 +255,9 @@ const GalleryDetail = () => {
                       Edit Galeri
                     </button>
                     <button
-                      onClick={handleDeleteGallery}
+                      onClick={() => setShowDeleteModal(true)}
                       className="block w-full text-left px-4 py-2 text-red-600 hover:bg-gray-100">
-                      Hapus Galeri
+                      Hapus Gambar
                     </button>
                   </>
                 ) : null}
@@ -281,6 +273,36 @@ const GalleryDetail = () => {
               </div>
             )}
           </div>
+
+          {showDeleteModal && (
+            <div
+              className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+              onClick={() => setShowDeleteModal(false)}>
+              <div
+                className="bg-white p-6 rounded-xl shadow-lg max-w-sm w-full text-center"
+                onClick={(e) => e.stopPropagation()}>
+                <h2 className="text-lg font-semibold">Konfirmasi Hapus</h2>
+                <p className="text-gray-600 mt-2">
+                  Anda yakin ingin menghapus gambar ini?
+                </p>
+                <div className="flex justify-center gap-4 mt-4">
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
+                    className="px-4 py-2 bg-gray-300 rounded-full hover:bg-gray-400">
+                    Batal
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleDeleteGallery();
+                      setShowDeleteModal(false);
+                    }}
+                    className="px-4 py-2 bg-red-500 text-white rounded-full hover:bg-red-700">
+                    Hapus Galeri
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {showEditModal && (
             <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-10">
@@ -354,6 +376,22 @@ const GalleryDetail = () => {
           </div>
           {/* Deskripsi dan Tanggal Upload */}
           <p className="text-gray-600 mt-3">{gallery.description}</p>
+
+          {/* Kategori */}
+          {gallery.categories && gallery.categories.length > 0 && (
+            <div className="mt-4">
+              <div className="flex flex-wrap gap-2">
+                {gallery.categories.map((category) => (
+                  <span
+                    key={category.category_id}
+                    className="inline-block px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
+                    {category.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Komentar */}
           <div className="mt-6">
             <h2 className="text-lg font-bold mb-2">

@@ -35,21 +35,21 @@ const Navbar = ({ showModal }) => {
           <input
             type="text"
             placeholder="Telusuri Galeri"
-            className="w-full p-2 rounded-full border border-gray-300 focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm text-gray-600"
+            className="w-full p-2.5 rounded-full border border-gray-300 focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm text-gray-600"
           />
         </div>
 
         <div className="space-x-4 flex items-center">
           {isLoggedIn ? (
             <div
-              className="flex items-center space-x-2 cursor-pointer"
+              className="flex items-center space-x-3 cursor-pointer border border[#ecfdf5] px-2 py-1.5 rounded-full"
               onClick={() => navigate("/profile")}>
               <img
                 src="https://upload.wikimedia.org/wikipedia/commons/a/ac/Default_pfp.jpg"
                 alt="Profil"
                 className="w-8 h-8 rounded-full border border-gray-300"
               />
-              <span className="text-base text-gray-700 font-medium">
+              <span className="text-base text-gray-70 font-medium">
                 {username}
               </span>
             </div>

@@ -15,7 +15,9 @@ const GalleryList = () => {
   const [isUser, setIsUser] = useState(false);
   const [showModal, setShowModal] = useState(false); // State untuk modal
   const navigate = useNavigate();
-  const limit = 12; // Menampilkan gambar per halaman
+  const [categories, setCategories] = useState([]); // Menyimpan daftar kategori
+  const [selectedCategory, setSelectedCategory] = useState(""); // Menyimpan kategori yang dipilih
+  const limit = 15; // Menampilkan gambar per halaman
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -37,29 +39,61 @@ const GalleryList = () => {
   }, []);
 
   const fetchGalleries = async () => {
+    if (!hasMore) return; // Jangan fetch jika tidak ada data lagi
+  
     try {
       const response = await axios.get(
         `http://localhost:5000/api/galleries?page=${page}&limit=${limit}`
       );
-      
-      console.log('Fetched data:', response.data); // Untuk debugging
-
+  
       const { galleries: newGalleries, totalPages } = response.data;
-
+  
       setGalleries((prev) => {
         const existingIds = new Set(prev.map((gallery) => gallery.id));
         const filteredGalleries = newGalleries.filter(
           (gallery) => !existingIds.has(gallery.id)
         );
-        return [...prev, ...filteredGalleries];
+  
+        return [...prev, ...filteredGalleries]; // Hapus pengacakan di sini!
       });
-
+  
+      setPage((prev) => prev + 1);
       setHasMore(page < totalPages);
-      setPage(prev => prev + 1);
     } catch (error) {
       console.error("Error fetching galleries:", error);
+      setHasMore(false);
     }
-  };
+  };  
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await axios.get(
+          "http://localhost:5000/api/categories"
+        );
+        setCategories(response.data);
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    const handleNewImage = (event) => {
+      setGalleries((prev) => {
+        const newGalleryList = [...prev, event.detail]; // Masukkan di akhir
+        return newGalleryList.sort(() => Math.random() - 0.5); // Acak posisi
+      });
+    };
+  
+    window.addEventListener("newGalleryImage", handleNewImage);
+  
+    return () => {
+      window.removeEventListener("newGalleryImage", handleNewImage);
+    };
+  }, []);
+  
 
   const handleGalleryClick = (galleryId) => {
     if (!isLoggedIn) {
@@ -81,19 +115,22 @@ const GalleryList = () => {
   };
 
   const breakpointColumnsObj = {
-    default: 5,
-    1400: 4,
-    1300: 3,
-    800: 2,
-    700: 1,
+    default: 6, // Tambahkan 6 kolom untuk layar besar
+    1600: 5, // Layar lebih kecil
+    1400: 4, // Laptop standar
+    1024: 3, // Tablet landscape
+    768: 2, // Tablet portrait
+    480: 1, // Ponsel
   };
+
   return (
     <div className="min-h-screen bg-[#faf8f4] p-6 pt-20">
       <InfiniteScroll
         dataLength={galleries.length}
         next={fetchGalleries}
         hasMore={hasMore}
-        loader={<p className="text-center text-gray-600">Loading...</p>}>
+        loader={<p className="text-center text-gray-600">Loading...</p>}
+        scrollThreshold={0.9}>
         <Masonry
           breakpointCols={breakpointColumnsObj}
           className="flex gap-6 w-full"
@@ -112,9 +149,9 @@ const GalleryList = () => {
                 alt={gallery.title}
                 className="w-full h-auto object-cover rounded-xl transition-transform duration-300 group-hover:scale-105"
                 effect="blur"
+                placeholderSrc="https://via.placeholder.com/300x400?text=Loading" // Tambahkan placeholder
                 loading="lazy"
               />
-
               <div className="absolute inset-0 bg-white/70 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                 <p className="text-lg font-semibold text-gray-800">
                   {gallery.title}

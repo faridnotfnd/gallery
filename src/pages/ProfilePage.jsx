@@ -30,6 +30,8 @@ const ProfilePage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [pendingFile, setPendingFile] = useState(null); // Menyimpan file yang akan dikompresi
   const [showCompressionModal, setShowCompressionModal] = useState(false);
+  const [categories, setCategories] = useState([]); // Ubah dari string ke array
+  const [newCategory, setNewCategory] = useState("");
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -156,55 +158,90 @@ const ProfilePage = () => {
     setPendingFile(null);
   };
 
+  // Lalu perbarui fungsi handleUpload untuk menyertakan kategori
   const handleUpload = async (e) => {
     e.preventDefault();
-
+  
     if (!title.trim()) {
       setError("Judul harus diisi!");
       return;
     }
-
+  
+    if (categories.length === 0) {
+      setError("Minimal satu kategori harus diisi!");
+      return;
+    }
+  
     if (selectedFiles.length === 0) {
       setError("Silakan pilih gambar sebelum mengupload!");
       return;
     }
-
+  
     const formData = new FormData();
     formData.append("title", title);
     formData.append("description", description || "");
-
+    categories.forEach((category) => {
+      formData.append("categories[]", category);
+    });
+  
     if (compressedFile) {
       formData.append("image", compressedFile);
     } else {
       formData.append("image", selectedFiles[0]);
     }
-
+  
     try {
       const token = localStorage.getItem("token");
-      await axios.post("http://localhost:5000/api/galleries", formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
+      const response = await axios.post(
+        "http://localhost:5000/api/galleries",
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+  
       setShowUploadModal(false);
-
-      // Reset semua state
+  
+      // Reset semua state setelah upload
       setTitle("");
       setDescription("");
+      setCategories([]);
       setSelectedFiles([]);
       setCompressedFile(null);
       setPreviewUrl(null);
       setError("");
-
+  
+      // Ambil gambar baru dan masukkan secara acak
+      const newImage = response.data.gallery;
+      window.dispatchEvent(
+        new CustomEvent("newGalleryImage", { detail: newImage })
+      );
+  
+      // Refresh halaman setelah upload
       setTimeout(() => {
         window.location.reload();
-      }, 300);
+      }, 500);
     } catch (error) {
       console.error("Error uploading file:", error);
       setError("Gagal mengupload gambar, coba lagi!");
     }
+  };
+  
+  
+  // Fungsi untuk menambah kategori
+  const handleAddCategory = () => {
+    if (newCategory.trim()) {
+      setCategories([...categories, newCategory.trim()]);
+      setNewCategory(""); // Reset input
+    }
+  };
+
+  // Fungsi untuk menghapus kategori
+  const handleRemoveCategory = (indexToRemove) => {
+    setCategories(categories.filter((_, index) => index !== indexToRemove));
   };
 
   const handleGalleryClick = (galleryId) => {
@@ -328,6 +365,49 @@ const ProfilePage = () => {
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full p-2 mb-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+
+              {/* Input field untuk kategori */}
+              {/* Ganti input kategori yang lama dengan yang baru */}
+              <div className="mb-3">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Tambah kategori"
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    className="flex-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onKeyPress={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddCategory();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCategory}
+                    className="px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-700">
+                    Tambah
+                  </button>
+                </div>
+
+                {/* Tampilkan kategori yang sudah ditambahkan */}
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {categories.map((cat, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-full">
+                      <span>{cat}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveCategory(index)}
+                        className="text-gray-500 hover:text-red-500">
+                        <FontAwesomeIcon icon={faX} className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
               <textarea
                 placeholder="Deskripsi (Opsional)"
