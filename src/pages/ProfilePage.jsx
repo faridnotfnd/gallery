@@ -2,11 +2,16 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPaperPlane, faX } from "@fortawesome/free-solid-svg-icons";
 import {
+  faPaperPlane,
+  faX,
   faArrowRightFromBracket,
   faHouse,
   faArrowLeft,
+  faTrash,
+  faImage,
+  faUpload,
+  faCheck,
 } from "@fortawesome/free-solid-svg-icons";
 import imageCompression from "browser-image-compression";
 
@@ -19,6 +24,7 @@ const ProfilePage = () => {
   const [galleries, setGalleries] = useState([]);
   const [activeTab, setActiveTab] = useState("gallery");
   const [albums, setAlbums] = useState([]);
+  const [showCreateAlbumModal, setShowCreateAlbumModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isUser, setIsUser] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -32,22 +38,44 @@ const ProfilePage = () => {
   const [showCompressionModal, setShowCompressionModal] = useState(false);
   const [categories, setCategories] = useState([]); // Ubah dari string ke array
   const [newCategory, setNewCategory] = useState("");
+  const [previewUrls, setPreviewUrls] = useState([]);
+  const [photos, setPhotos] = useState([]);
+  const [showPhotoSourceModal, setShowPhotoSourceModal] = useState(false);
+  const [showGalleryModal, setShowGalleryModal] = useState(false);
+  const [userGalleries, setUserGalleries] = useState([]);
+  const [selectedGalleryPhotos, setSelectedGalleryPhotos] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Fungsi untuk mengambil galeri per user dari backend
+  const fetchUserGalleries = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.get(
+        "http://localhost:5000/api/galleries/my-galleries",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      setUserGalleries(response.data);
+    } catch (error) {
+      console.error("Error fetching user galleries:", error);
+      setUserGalleries([]);
+    }
+  };
+
+  // Perbarui useEffect untuk menggunakan fungsi fetchUserGalleries yang baru
   useEffect(() => {
     const token = localStorage.getItem("token");
     setIsLoggedIn(!!token);
 
     const storedUsername = localStorage.getItem("username");
-    const userId = localStorage.getItem("userId");
-
     if (storedUsername) {
       setUsername(storedUsername);
     }
 
-    if (userId) {
-      fetchUserGalleries(userId);
-    }
-
+    // Langsung panggil fetchGalleries dan fetchUserGalleries
     const fetchGalleries = async () => {
       try {
         const response = await axios.get(
@@ -61,47 +89,220 @@ const ProfilePage = () => {
         setGalleries(response.data);
       } catch (error) {
         console.error("Error fetching galleries:", error);
+        setGalleries([]);
       }
     };
+
     fetchGalleries();
+    fetchUserGalleries();
   }, []);
 
-  const fetchUserGalleries = async (userId) => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await axios.get(
-        `http://localhost:5000/api/galleries/${userId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      setGalleries(response.data);
-    } catch (error) {
-      console.error("Error fetching user galleries:", error);
+  const handlePhotoSourceSelect = (source) => {
+    setShowPhotoSourceModal(false);
+
+    if (source === "device") {
+      document.getElementById("photo-upload").click();
+    } else if (source === "gallery") {
+      setShowGalleryModal(true);
+      fetchUserGalleries(); // Tambahkan pemanggilan fetchUserGalleries di sini
     }
   };
 
+  const handleGalleryPhotoSelect = (photo) => {
+    const photoInfo = {
+      id: photo.id,
+      title: photo.title,
+      image_url: photo.image_url,
+      fromGallery: true,
+    };
+
+    if (selectedGalleryPhotos.includes(photo.id)) {
+      setSelectedGalleryPhotos((prev) => prev.filter((id) => id !== photo.id));
+      setPhotos((prev) => prev.filter((p) => p.id !== photo.id));
+      setPreviewUrls((prev) =>
+        prev.filter(
+          (_, i) => prev[i] !== `http://localhost:5000/${photo.image_url}`
+        )
+      );
+    } else {
+      setSelectedGalleryPhotos((prev) => [...prev, photo.id]);
+      setPhotos((prev) => [...prev, photoInfo]);
+      setPreviewUrls((prev) => [
+        ...prev,
+        `http://localhost:5000/${photo.image_url}`,
+      ]);
+    }
+  };
+
+  // Tambahkan useEffect untuk memuat galeri saat modal dibuka
+  useEffect(() => {
+    if (showGalleryModal) {
+      fetchUserGalleries();
+    }
+  }, [showGalleryModal]);
+
+  const addSelectedPhotosToAlbum = () => {
+    setShowGalleryModal(false);
+  };
+
+  // Fungsi untuk mengambil album per user dari backend
   useEffect(() => {
     const fetchAlbums = async () => {
       try {
         const token = localStorage.getItem("token");
-        const userId = localStorage.getItem("userId");
+        const userId = localStorage.getItem("user_id");
+
+        if (!userId) {
+          // Tambahkan pengecekan
+          console.error("User ID tidak ditemukan di localStorage");
+          setAlbums([]);
+          return;
+        }
+
         const response = await axios.get(
           `http://localhost:5000/api/albums/user/${userId}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
         );
-        setAlbums(response.data);
+
+        if (response.data) {
+          // Pastikan response.data adalah array sebelum mengatur state
+          if (Array.isArray(response.data)) {
+            setAlbums(response.data);
+          } else {
+            console.error("Data albums tidak valid:", response.data);
+            setAlbums([]);
+          }
+        }
       } catch (error) {
         console.error("Error fetching albums:", error);
+        setAlbums([]);
       }
     };
+
     fetchAlbums();
   }, []);
 
+  // Fungsi untuk menangani upload file dari perangkat
+  const handleFileSelect = (event) => {
+    const newFiles = Array.from(event.target.files);
+    setPhotos((prev) => [...prev, ...newFiles]);
+
+    // Membuat URL sementara untuk setiap gambar yang dipilih
+    const newUrls = newFiles.map((file) => URL.createObjectURL(file));
+    setPreviewUrls((prev) => [...prev, ...newUrls]);
+
+    console.log("Modal upload harus tampil:", newFiles);
+    setShowUploadModal(true); // Trigger modal untuk detail upload
+  };
+
+  // Fungsi untuk menghapus foto
+  const removePhoto = (index) => {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
+    setPreviewUrls((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  useEffect(() => {
+    if (showCreateAlbumModal) {
+      setShowUploadModal(false); // Menutup modal upload saat create album dibuka
+    }
+  }, [showCreateAlbumModal]);
+
+  // Fungsi untuk menyimpan album
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true); // Tambahkan indikator loading
+
+    try {
+      const userId = localStorage.getItem("user_id");
+
+      // Validasi dasar
+      if (!userId) {
+        alert("User ID tidak ditemukan. Silakan login kembali");
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (!title.trim()) {
+        alert("Judul album tidak boleh kosong");
+        setIsSubmitting(false);
+        return;
+      }
+
+      const token = localStorage.getItem("token");
+      const formData = new FormData();
+
+      formData.append("title", title.trim());
+      formData.append("description", description?.trim() || "");
+      formData.append("user_id", userId);
+
+      // Handle foto dari perangkat
+      photos.forEach((photo) => {
+        if (photo instanceof File) {
+          formData.append("photos", photo);
+        }
+      });
+
+      // Handle foto dari galeri yang sudah ada - perbaiki format JSON
+      if (photos.some((photo) => photo.fromGallery)) {
+        formData.append(
+          "gallery_photos",
+          JSON.stringify(
+            photos
+              .filter((photo) => photo.fromGallery)
+              .map((photo) => ({
+                gallery_id: photo.id,
+                title: photo.title,
+                image_url: photo.image_url,
+              }))
+          )
+        );
+      }
+
+      const response = await axios.post(
+        "http://localhost:5000/api/albums",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      // Refresh daftar album
+      const updatedAlbumsResponse = await axios.get(
+        `http://localhost:5000/api/albums/user/${userId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      setAlbums(updatedAlbumsResponse.data);
+
+      // Reset form dan tutup modal
+      setTitle("");
+      setDescription("");
+      setPhotos([]);
+      setPreviewUrls([]);
+      setSelectedGalleryPhotos([]);
+      setShowCreateAlbumModal(false); // Pastikan modal tertutup di sini
+
+      // Tampilkan pemberitahuan keberhasilan setelah modal tertutup
+      setTimeout(() => {
+        alert("Album berhasil dibuat!");
+      }, 300);
+    } catch (error) {
+      console.error("Error creating album:", error);
+      alert(
+        error.response?.data?.error || "Terjadi kesalahan saat membuat album"
+      );
+    } finally {
+      setIsSubmitting(false); // Reset status loading
+    }
+  };
+  // Fungsi untuk kompresi gambar
   const compressImage = async (file) => {
     const options = {
       maxSizeMB: 1,
@@ -161,35 +362,35 @@ const ProfilePage = () => {
   // Lalu perbarui fungsi handleUpload untuk menyertakan kategori
   const handleUpload = async (e) => {
     e.preventDefault();
-  
+
     if (!title.trim()) {
       setError("Judul harus diisi!");
       return;
     }
-  
+
     if (categories.length === 0) {
       setError("Minimal satu kategori harus diisi!");
       return;
     }
-  
+
     if (selectedFiles.length === 0) {
       setError("Silakan pilih gambar sebelum mengupload!");
       return;
     }
-  
+
     const formData = new FormData();
     formData.append("title", title);
     formData.append("description", description || "");
     categories.forEach((category) => {
       formData.append("categories[]", category);
     });
-  
+
     if (compressedFile) {
       formData.append("image", compressedFile);
     } else {
       formData.append("image", selectedFiles[0]);
     }
-  
+
     try {
       const token = localStorage.getItem("token");
       const response = await axios.post(
@@ -202,9 +403,9 @@ const ProfilePage = () => {
           },
         }
       );
-  
+
       setShowUploadModal(false);
-  
+
       // Reset semua state setelah upload
       setTitle("");
       setDescription("");
@@ -213,13 +414,13 @@ const ProfilePage = () => {
       setCompressedFile(null);
       setPreviewUrl(null);
       setError("");
-  
+
       // Ambil gambar baru dan masukkan secara acak
       const newImage = response.data.gallery;
       window.dispatchEvent(
         new CustomEvent("newGalleryImage", { detail: newImage })
       );
-  
+
       // Refresh halaman setelah upload
       setTimeout(() => {
         window.location.reload();
@@ -229,8 +430,6 @@ const ProfilePage = () => {
       setError("Gagal mengupload gambar, coba lagi!");
     }
   };
-  
-  
   // Fungsi untuk menambah kategori
   const handleAddCategory = () => {
     if (newCategory.trim()) {
@@ -250,7 +449,7 @@ const ProfilePage = () => {
 
   const handleLogout = () => {
     localStorage.removeItem("token");
-    localStorage.removeItem("userId");
+    localStorage.removeItem("user_id");
     localStorage.removeItem("username");
     navigate("/");
     window.location.reload();
@@ -271,6 +470,167 @@ const ProfilePage = () => {
           <FontAwesomeIcon icon={faArrowRightFromBracket} className="w-6 h-6" />
         </button>
       </div>
+      {/* Modal Pembuatan Album */}
+      {showCreateAlbumModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-40">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-[600px] max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">Buat Album Baru</h2>
+              <FontAwesomeIcon
+                icon={faX}
+                className="cursor-pointer"
+                onClick={() => setShowCreateAlbumModal(false)}
+              />
+            </div>
+
+            <input
+              type="text"
+              placeholder="Judul Album"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full p-2 mb-4 border rounded"
+            />
+
+            <textarea
+              placeholder="Deskripsi Album"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full p-2 mb-4 border rounded"
+              rows="3"
+            />
+
+            <button
+              onClick={() => setShowPhotoSourceModal(true)}
+              className="w-full p-2 mb-4 bg-blue-500 text-white rounded hover:bg-blue-600">
+              Tambah Foto
+            </button>
+
+            {/* Preview Foto */}
+            {previewUrls.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                {previewUrls.map((url, index) => (
+                  <div key={index} className="relative">
+                    <img
+                      src={url}
+                      alt={`Preview ${index + 1}`}
+                      className="w-full h-24 object-cover rounded"
+                    />
+                    <button
+                      onClick={() => removePhoto(index)}
+                      className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full">
+                      <FontAwesomeIcon icon={faTrash} className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button
+              onClick={handleSubmit}
+              className="w-full p-2 bg-green-500 text-white rounded hover:bg-green-600">
+              Simpan Album
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Pemilihan Sumber Foto */}
+      {showPhotoSourceModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-[400px]">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">Pilih Sumber Foto</h2>
+              <FontAwesomeIcon
+                icon={faX}
+                className="cursor-pointer"
+                onClick={() => setShowPhotoSourceModal(false)}
+              />
+            </div>
+
+            <div className="space-y-4">
+              <button
+                onClick={() => handlePhotoSourceSelect("device")}
+                className="w-full p-3 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center justify-center gap-2">
+                <FontAwesomeIcon icon={faUpload} />
+                Unggah dari Perangkat
+              </button>
+
+              <button
+                onClick={() => handlePhotoSourceSelect("gallery")}
+                className="w-full p-3 bg-green-500 text-white rounded hover:bg-green-600 flex items-center justify-center gap-2">
+                <FontAwesomeIcon icon={faImage} />
+                Pilih dari Galeri
+              </button>
+            </div>
+
+            <input
+              id="photo-upload"
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Modal Galeri Foto */}
+      {showGalleryModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-[800px] max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">Pilih Foto dari Galeri</h2>
+              <FontAwesomeIcon
+                icon={faX}
+                className="cursor-pointer"
+                onClick={() => setShowGalleryModal(false)}
+              />
+            </div>
+
+            <div className="grid grid-cols-4 gap-4 mb-4">
+              {userGalleries.map((photo) => (
+                <div
+                  key={photo.id}
+                  className={`relative cursor-pointer ${
+                    selectedGalleryPhotos.includes(photo.id)
+                      ? "ring-2 ring-blue-500"
+                      : ""
+                  }`}
+                  onClick={() => handleGalleryPhotoSelect(photo)}>
+                  <img
+                    src={`http://localhost:5000/${photo.image_url}`}
+                    alt={photo.title}
+                    className="w-full h-32 object-cover rounded"
+                  />
+                  {selectedGalleryPhotos.includes(photo.id) && (
+                    <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center">
+                      <FontAwesomeIcon
+                        icon={faCheck}
+                        className="text-white text-2xl"
+                      />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowGalleryModal(false)}
+                className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
+                Batal
+              </button>
+              <button
+                onClick={addSelectedPhotosToAlbum}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                Tambahkan Foto Terpilih
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* end album */}
 
       {/* Modal Logout */}
       {showLogoutModal && (
@@ -317,13 +677,12 @@ const ProfilePage = () => {
               Upload
             </button>
             <button
-              onClick={() => navigate("/create-album")}
+              onClick={() => setShowCreateAlbumModal(true)}
               className="text-sm bg-gray-800 px-8 py-3 rounded-full text-gray-100 font-medium">
               Buat Album
             </button>
           </div>
         </div>
-
         {/* Tab Section */}
         <div className="flex justify-center mb-4">
           <button
@@ -341,7 +700,6 @@ const ProfilePage = () => {
             Album
           </button>
         </div>
-
         {/* Modal Upload */}
         {showUploadModal && (
           <div
@@ -367,7 +725,6 @@ const ProfilePage = () => {
               />
 
               {/* Input field untuk kategori */}
-              {/* Ganti input kategori yang lama dengan yang baru */}
               <div className="mb-3">
                 <div className="flex gap-2">
                   <input
@@ -376,7 +733,7 @@ const ProfilePage = () => {
                     value={newCategory}
                     onChange={(e) => setNewCategory(e.target.value)}
                     className="flex-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    onKeyPress={(e) => {
+                    onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
                         handleAddCategory();
@@ -511,7 +868,6 @@ const ProfilePage = () => {
             </div>
           </div>
         )}
-
         {/* Gallery Section */}
         {activeTab === "gallery" && (
           <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-6 space-y-6">
@@ -547,25 +903,40 @@ const ProfilePage = () => {
               albums.map((album) => (
                 <div
                   key={album.id}
-                  className="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                  className="border rounded-lg overflow-hidden shadow-sm transition-shadow cursor-pointer"
                   onClick={() => {
                     if (album.album_id) {
                       navigate(`/album/${album.album_id}`);
-                    } else {
-                      console.error("Album ID tidak ditemukan!");
                     }
                   }}>
-                  <div className="aspect-w-16 aspect-h-12 bg-gray-100">
-                    <img
-                      src={
-                        album.cover_photo
-                          ? `http://localhost:5000/${album.cover_photo}`
-                          : "https://via.placeholder.com/300x200"
-                      }
-                      alt={album.title}
-                      className="w-full h-full object-cover"
-                    />
+                  <div className="aspect-w-16 aspect-h-12 bg-gray-100 relative group">
+                    {/* Gambar dan efek hover */}
+                    {album.photos && album.photos.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                        {album.photos.slice(0, 5).map((photo) => (
+                          <img
+                            key={photo.id}
+                            src={`http://localhost:5000/${photo.image_url}`}
+                            alt={photo.title}
+                            className="w-full h-auto object-cover rounded-lg"
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-500">
+                        <p>No images in this album</p>
+                      </div>
+                    )}
+
+                    {/* Efek hover untuk menampilkan judul album */}
+                    <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                      <p className="text-white text-lg font-semibold">
+                        {album.title}
+                      </p>
+                    </div>
                   </div>
+
+                  {/* Deskripsi Album */}
                   <div className="p-4">
                     <h3 className="font-medium text-gray-900 truncate">
                       {album.title}
@@ -577,8 +948,8 @@ const ProfilePage = () => {
                 </div>
               ))
             ) : (
-              <div className="w-full h-full flex justify-center items-center">
-                <p className="text-gray-500 text-lg font-medium"></p>
+              <div className="w-full h-32 bg-gray-100 flex items-center justify-center text-gray-400 text-lg">
+                Tidak ada item
               </div>
             )}
           </div>

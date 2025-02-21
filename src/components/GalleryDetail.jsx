@@ -204,7 +204,7 @@ const GalleryDetail = () => {
   if (!gallery) return <div></div>;
   // Explicit type conversion and comparison
   const isOwner = Number(userId) === Number(gallery.user_id);
-  console.log("Is owner check:", isOwner, {
+  console.log(isOwner, {
     userId: Number(userId),
     userIdType: typeof Number(userId),
     galleryUserId: Number(gallery.user_id),
@@ -232,6 +232,7 @@ const GalleryDetail = () => {
 
         {/* Bagian Detail dan Komentar */}
         <div className="w-3/5 p-6 relative">
+          <h1 className="text-2xl font-bold mb-4">{gallery.title}</h1>
           {/* Tombol Elipsis */}
           <div className="absolute top-3 right-8 z-50">
             <button
@@ -384,7 +385,14 @@ const GalleryDetail = () => {
                 {gallery.categories.map((category) => (
                   <span
                     key={category.category_id}
-                    className="inline-block px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
+                    onClick={() => {
+                      localStorage.setItem(
+                        "pendingCategorySearch",
+                        category.name
+                      );
+                      navigate("/");
+                    }}
+                    className="inline-block px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm cursor-pointer hover:bg-gray-200 transition-colors">
                     {category.name}
                   </span>
                 ))}

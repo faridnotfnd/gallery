@@ -1,12 +1,12 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 
-const Navbar = ({ showModal }) => {
+const Navbar = ({ showModal, onSearch }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [username, setUsername] = useState("");
-
+  const [searchQuery, setSearchQuery] = useState("");
   useEffect(() => {
     const token = localStorage.getItem("token");
     setIsLoggedIn(!!token);
@@ -15,11 +15,56 @@ const Navbar = ({ showModal }) => {
     if (storedUsername) {
       setUsername(storedUsername);
     }
-  }, [location]);
 
+    // Gunakan setTimeout hanya untuk memproses pencarian setelah navigasi
+    setTimeout(() => {
+      const pendingSearch = localStorage.getItem("pendingCategorySearch");
+      if (pendingSearch && typeof onSearch === "function") {
+        console.log("Processing pending category search:", pendingSearch);
+        setSearchQuery(pendingSearch);
+        onSearch(pendingSearch);
+        localStorage.removeItem("pendingCategorySearch");
+      } else if (
+        location.state?.searchQuery &&
+        typeof onSearch === "function"
+      ) {
+        console.log(
+          "Received search query from navigation:",
+          location.state.searchQuery
+        );
+        setSearchQuery(location.state.searchQuery);
+        onSearch(location.state.searchQuery);
+
+        setTimeout(() => {
+          navigate(location.pathname, { replace: true, state: {} });
+        }, 100);
+      }
+    }, 50); // Tambahkan delay kecil agar localStorage terbaca dengan benar
+  }, [location, onSearch, navigate]); // ✅ Ini adalah cara yang benar!
+
+  // Jika tidak berada di halaman root, tidak perlu menampilkan navbar
   if (location.pathname !== "/") {
     return null;
   }
+
+  const handleSearch = (e) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    // Pastikan onSearch adalah fungsi sebelum dipanggil
+    if (typeof onSearch === "function") {
+      onSearch(query);
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      // Pastikan onSearch adalah fungsi sebelum dipanggil
+      if (typeof onSearch === "function") {
+        onSearch(searchQuery);
+      }
+    }
+  };
 
   return (
     <nav
@@ -34,6 +79,9 @@ const Navbar = ({ showModal }) => {
         <div className="flex-1 mx-4">
           <input
             type="text"
+            value={searchQuery}
+            onChange={handleSearch}
+            onKeyDown={handleKeyPress}
             placeholder="Telusuri Galeri"
             className="w-full p-2.5 rounded-full border border-gray-300 focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm text-gray-600"
           />
