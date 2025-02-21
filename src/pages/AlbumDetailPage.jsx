@@ -3,11 +3,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faArrowLeft,
-  faX,
-  faUpload,
+  faEllipsisV,
+  faPen,
+  faTrash,
   faImage,
-  faCheck,
+  faArrowLeft,
 } from "@fortawesome/free-solid-svg-icons";
 
 const AlbumDetailPage = () => {
@@ -20,12 +20,17 @@ const AlbumDetailPage = () => {
   const [error, setError] = useState(null);
   const [photos, setPhotos] = useState([]);
   const [previewUrls, setPreviewUrls] = useState([]);
-  const [showUploadModal, setShowUploadModal] = useState(false);
   const { albumId } = useParams();
-  const [selectedPhotoId, setSelectedPhotoId] = useState(null);
+  const [showOptions, setShowOptions] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    title: "",
+    description: "",
+  });
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const navigate = useNavigate();
 
-  // Fetch album data once on mount
+  // Fetch album data
   useEffect(() => {
     const fetchAlbum = async () => {
       try {
@@ -38,7 +43,11 @@ const AlbumDetailPage = () => {
             },
           }
         );
-        setAlbum(response.data.data); // Ubah ini dari response.data menjadi response.data.data
+        setAlbum(response.data.data);
+        setEditFormData({
+          title: response.data.data.title,
+          description: response.data.data.description || "",
+        });
         setLoading(false);
       } catch (err) {
         setError("Gagal memuat album");
@@ -50,113 +59,89 @@ const AlbumDetailPage = () => {
     fetchAlbum();
   }, [albumId]);
 
-  // Fetch user galleries when modal is shown
-  useEffect(() => {
-    if (showGalleryModal) {
-      fetchUserGalleries();
-    }
-  }, [showGalleryModal]);
-
-  // Ensure conditional rendering doesn't break hook ordering
-  const handleFileSelect = (event) => {
-    const newFiles = Array.from(event.target.files);
-
-    // Filter only image files
-    const validFiles = newFiles.filter((file) =>
-      file.type.startsWith("image/")
-    );
-
-    if (validFiles.length === 0) {
-      alert("Hanya file gambar yang diperbolehkan!");
-      return;
-    }
-
-    setPhotos((prev) => [...prev, ...validFiles]);
-
-    // Create temporary URL for each selected image
-    const newUrls = validFiles.map((file) => URL.createObjectURL(file));
-    setPreviewUrls((prev) => [...prev, ...newUrls]);
-
-    console.log("File yang dipilih:", validFiles);
-    setShowUploadModal(true); // Show the upload modal
-  };
-
-  const handlePhotoSourceSelect = (source) => {
-    setShowPhotoSourceModal(false);
-
-    if (source === "device") {
-      document.getElementById("photo-upload").click();
-    } else if (source === "gallery") {
-      setShowGalleryModal(true);
-      fetchUserGalleries(); // Fetch galleries when gallery is selected
-    }
-  };
-
-  const handleGalleryPhotoSelect = (photo) => {
-    const photoInfo = {
-      id: photo.id,
-      title: photo.title,
-      image_url: photo.image_url,
-      fromGallery: true,
-    };
-
-    if (selectedGalleryPhotos.includes(photo.id)) {
-      setSelectedGalleryPhotos((prev) => prev.filter((id) => id !== photo.id));
-      setPhotos((prev) => prev.filter((p) => p.id !== photo.id));
-      setPreviewUrls((prev) =>
-        prev.filter(
-          (_, i) => prev[i] !== `http://localhost:5000/${photo.image_url}`
-        )
-      );
-    } else {
-      setSelectedGalleryPhotos((prev) => [...prev, photo.id]);
-      setPhotos((prev) => [...prev, photoInfo]);
-      setPreviewUrls((prev) => [
-        ...prev,
-        `http://localhost:5000/${photo.image_url}`,
-      ]);
-    }
-  };
-
-  const fetchUserGalleries = async () => {
+  // Handle edit album
+  const handleEditAlbum = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get(
-        "http://localhost:5000/api/galleries/my-galleries",
+      await axios.put(
+        `http://localhost:5000/api/albums/${albumId}`,
+        editFormData,
         {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
       );
-      setUserGalleries(response.data);
-    } catch (err) {
-      console.error("Error fetching galleries:", err);
-      setUserGalleries([]);
+      setShowEditModal(false);
+      // Refresh album data
+      const response = await axios.get(
+        `http://localhost:5000/api/albums/${albumId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      setAlbum(response.data.data);
+    } catch (error) {
+      console.error("Error updating album:", error);
+      alert("Gagal mengupdate album");
     }
   };
 
-  const addSelectedPhotosToAlbum = () => {
-    setShowGalleryModal(false);
+  // Handle add photos
+  const handleAddPhotos = async (files) => {
+    try {
+      const token = localStorage.getItem("token");
+      const formData = new FormData();
+
+      files.forEach((file) => {
+        formData.append("photos", file);
+      });
+
+      await axios.post(
+        `http://localhost:5000/api/albums/${albumId}/photos`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      // Refresh album data
+      const response = await axios.get(
+        `http://localhost:5000/api/albums/${albumId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      setAlbum(response.data.data);
+      setShowPhotoSourceModal(false);
+      setShowOptions(false);
+    } catch (error) {
+      console.error("Error adding photos:", error);
+      alert("Gagal menambahkan foto");
+    }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#faf8f4] flex items-center justify-center">
-        <div className="text-xl text-gray-600">Memuat...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-[#faf8f4] flex items-center justify-center">
-        <div className="text-xl text-red-600">{error}</div>
-      </div>
-    );
-  }
-
-  // Tambahkan handler untuk klik gambar
-  const handlePhotoClick = (photoId) => {
-    navigate(`/gallery/${photoId}`);
+  // Handle delete album
+  const handleDeleteAlbum = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      await axios.delete(`http://localhost:5000/api/albums/${albumId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      navigate("/profile"); // Redirect to profile page after deleting the album
+    } catch (error) {
+      console.error("Error deleting album:", error);
+      alert("Gagal menghapus album");
+    }
   };
 
   return (
@@ -168,7 +153,122 @@ const AlbumDetailPage = () => {
           className="text-gray-600 hover:bg-gray-200 px-3 py-3 rounded-full text-sm font-medium">
           <FontAwesomeIcon icon={faArrowLeft} className="w-6 h-6" />
         </button>
+
+        <div className="absolute top-3 right-8 z-50">
+          <button
+            onClick={() => setShowOptions(!showOptions)}
+            className="text-gray-600 text-2xl hover:scale-110 transition-transform p-2">
+            <FontAwesomeIcon icon={faEllipsisV} />
+          </button>
+
+          {showOptions && (
+            <div className="absolute right-0 mt-2 bg-white shadow-lg rounded-xl w-48">
+              <button
+                onClick={() => {
+                  setShowEditModal(true);
+                  setShowOptions(false);
+                }}
+                className="block w-full text-left px-4 py-2 hover:bg-gray-100">
+                <FontAwesomeIcon icon={faPen} className="mr-2" />
+                Edit Album
+              </button>
+              <button
+                onClick={() => {
+                  document.getElementById("photo-upload").click();
+                  setShowOptions(false);
+                }}
+                className="block w-full text-left px-4 py-2 hover:bg-gray-100">
+                <FontAwesomeIcon icon={faImage} className="mr-2" />
+                Tambah Gambar
+              </button>
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                className="block w-full text-left px-4 py-2 text-red-600 hover:bg-gray-100">
+                <FontAwesomeIcon icon={faTrash} className="mr-2" />
+                Hapus Album
+              </button>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Hidden file input */}
+      <input
+        type="file"
+        id="photo-upload"
+        multiple
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => handleAddPhotos(Array.from(e.target.files))}
+      />
+
+      {showEditModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+            <h2 className="text-xl font-bold mb-4">Edit Album</h2>
+            <input
+              type="text"
+              value={editFormData.title}
+              onChange={(e) =>
+                setEditFormData({ ...editFormData, title: e.target.value })
+              }
+              className="w-full p-2 border rounded mb-4"
+              placeholder="Judul Album"
+            />
+            <textarea
+              value={editFormData.description}
+              onChange={(e) =>
+                setEditFormData({
+                  ...editFormData,
+                  description: e.target.value,
+                })
+              }
+              className="w-full p-2 border rounded mb-4"
+              placeholder="Deskripsi"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="px-4 py-2 bg-gray-200 rounded">
+                Batal
+              </button>
+              <button
+                onClick={handleEditAlbum}
+                className="px-4 py-2 bg-blue-500 text-white rounded">
+                Simpan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div
+            className="bg-white p-6 rounded-lg shadow-lg w-96 text-center"
+            onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-semibold">Konfirmasi Hapus</h2>
+            <p className="text-gray-600 mt-2">
+              Anda yakin ingin menghapus album ini?
+            </p>
+            <div className="flex justify-center gap-4 mt-4">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 bg-gray-300 rounded-full hover:bg-gray-400">
+                Batal
+              </button>
+              <button
+                onClick={() => {
+                  handleDeleteAlbum();
+                  setShowDeleteModal(false);
+                }}
+                className="px-4 py-2 bg-red-500 text-white rounded-full hover:bg-red-700">
+                Hapus Album
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Album Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">

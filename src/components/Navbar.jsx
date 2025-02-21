@@ -72,7 +72,7 @@ const Navbar = ({ showModal, onSearch }) => {
         showModal ? "bg-opacity-70 bg-[#faf8f4]" : "bg-[#faf8f4]"
       }`}>
       <div className="container mx-auto flex justify-between items-center">
-        <Link to="/" className="flex items-center">
+        <Link to="/" className="flex items-center border border-violet-100 px-3 py-1.5 rounded-full">
           <h2 className="text-xl font-lora">Cavallery</h2>
         </Link>
 
