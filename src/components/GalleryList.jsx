@@ -1,33 +1,33 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import localforage from "localforage";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { LazyLoadImage } from "react-lazy-load-image-component"; // Import LazyLoadImage
-import "react-lazy-load-image-component/src/effects/blur.css"; // Import effect
-import InfiniteScroll from "react-infinite-scroll-component"; // Tambahkan infinite scroll
-import { motion } from "framer-motion"; // Import framer-motion
+import { LazyLoadImage } from "react-lazy-load-image-component";
+import "react-lazy-load-image-component/src/effects/blur.css";
+import InfiniteScroll from "react-infinite-scroll-component";
+import { motion } from "framer-motion";
 import Masonry from "react-masonry-css";
 import { ThreeDot } from "react-loading-indicators";
 import Navbar from "./Navbar";
 
 const GalleryList = () => {
   const [galleries, setGalleries] = useState([]);
-  const [page, setPage] = useState(1); // Mulai dari 0
-  const [hasMore, setHasMore] = useState(true); // State apakah masih ada data
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isUser, setIsUser] = useState(false);
-  const [showModal, setShowModal] = useState(false); // State untuk modal
+  const [showModal, setShowModal] = useState(false);
   const navigate = useNavigate();
-  const [categories, setCategories] = useState([]); // Menyimpan daftar kategori
-  const [selectedCategory, setSelectedCategory] = useState(""); // Menyimpan kategori yang dipilih
-  const [allGalleries, setAllGalleries] = useState([]);  // Add new state for all galleries (unfiltered)
-  const [searchQuery, setSearchQuery] = useState(""); // Tambahkan state untuk query pencarian
+  const [searchQuery, setSearchQuery] = useState("");
   const [filteredGalleries, setFilteredGalleries] = useState([]);
-  const [isSearching, setIsSearching] = useState(false); // State baru untuk tracking pencarian
-  const limit = 15; // Menampilkan gambar per halaman
+  const [isSearching, setIsSearching] = useState(false);
+  const [error, setError] = useState(null);
+  const [imageUrls, setImageUrls] = useState({});
+  const limit = 15;
 
   const handleSearch = (query) => {
-    setIsSearching(true); // Set status pencarian ke true
-    setSearchQuery(query); // Simpan query pencarian
+    setIsSearching(true);
+    setSearchQuery(query);
 
     if (!query.trim()) {
       setFilteredGalleries(galleries);
@@ -47,74 +47,116 @@ const GalleryList = () => {
   };
 
   useEffect(() => {
-    // After galleries are updated and if we have a searchQuery, perform the filtering
     if (searchQuery && galleries.length > 0) {
       handleSearch(searchQuery);
     } else {
       setFilteredGalleries(galleries);
     }
   }, [galleries, searchQuery]);
+
   useEffect(() => {
     const token = localStorage.getItem("token");
     setIsLoggedIn(!!token);
-    setPage(0); // Reset page ke 0
-    setGalleries([]); // Reset galleries
-    fetchGalleries(); // Panggil fetch pertama kali
+
+    // Reset state saat mount
+    setPage(1);
+    setGalleries([]);
+    setFilteredGalleries([]);
+    setHasMore(true);
+
+    fetchGalleries();
+
+    // Cleanup function
+    return () => {
+      setGalleries([]);
+      setFilteredGalleries([]);
+    };
   }, []);
 
-  useEffect(() => {
-    if (searchQuery && galleries.length > 0) {
-      handleSearch(searchQuery);
-    } else {
-      setFilteredGalleries(galleries);
-    }
-  }, [galleries, searchQuery]);
+  // Fungsi untuk cache gambar
+  const cacheImages = async (galleries) => {
+    if (!Array.isArray(galleries)) return;
 
-  useEffect(() => {
-    setFilteredGalleries(galleries);
-  }, [galleries]);
+    const cachePromises = galleries.map(async (gallery) => {
+      if (!gallery?.image_url) return;
 
+      const imageUrl = `http://localhost:5000/${gallery.image_url}`;
+      const cacheKey = `image_${gallery.id}`;
+
+      try {
+        // Cek apakah gambar sudah ada di cache
+        const cachedImage = await localforage.getItem(cacheKey);
+        if (!cachedImage) {
+          const response = await fetch(imageUrl);
+          if (!response.ok)
+            throw new Error(`HTTP error! status: ${response.status}`);
+          const blob = await response.blob();
+          await localforage.setItem(cacheKey, blob);
+          console.log(`Successfully cached image ${gallery.id}`);
+        }
+      } catch (error) {
+        console.error(`Failed to cache image ${gallery.id}:`, error);
+      }
+    });
+
+    await Promise.allSettled(cachePromises);
+  };
+
+  // Update fetchGalleries to include caching
   const fetchGalleries = async () => {
-    if (!hasMore) return; // Jangan fetch jika tidak ada data lagi
-
     try {
-      const response = await axios.get(
-        `http://localhost:5000/api/galleries?page=${page}&limit=${limit}`
-      );
+      const nextPage = page;
+      const cacheKey = `galleries_page_${nextPage}`;
 
-      const { galleries: newGalleries, totalPages } = response.data;
-
-      setGalleries((prev) => {
-        const existingIds = new Set(prev.map((gallery) => gallery.id));
-        const filteredGalleries = newGalleries.filter(
-          (gallery) => !existingIds.has(gallery.id)
+      // Online fetch
+      try {
+        const response = await axios.get(
+          `http://localhost:5000/api/galleries?page=${nextPage}&limit=${limit}&t=${Date.now()}`
         );
 
-        return [...prev, ...filteredGalleries]; // Hapus pengacakan di sini!
-      });
+        // Cache data dan gambar
+        await localforage.setItem(cacheKey, response.data);
+        await cacheImages(response.data.galleries);
 
-      setPage((prev) => prev + 1);
-      setHasMore(page < totalPages);
+        setGalleries(prev => {
+          const existingIds = new Set(prev.map(gallery => gallery.id));
+          const newGalleries = response.data.galleries.filter(
+            gallery => !existingIds.has(gallery.id)
+          );
+          return [...prev, ...newGalleries];
+        });
+
+        setHasMore(nextPage < response.data.totalPages);
+        setPage(prev => prev + 1);
+        return;
+      } catch (error) {
+        console.log("Failed to fetch new data, trying cache...");
+      }
+
+      // Offline/fallback: ambil dari cache
+      const cachedData = await localforage.getItem(cacheKey);
+      if (cachedData) {
+        console.log("Data diambil dari client cache");
+        setGalleries(prev => {
+          const existingIds = new Set(prev.map(gallery => gallery.id));
+          const cachedGalleries = cachedData.galleries.filter(
+            gallery => !existingIds.has(gallery.id)
+          );
+          return [...prev, ...cachedGalleries];
+        });
+        setHasMore(nextPage < cachedData.totalPages);
+        setPage(prev => prev + 1);
+      }
     } catch (error) {
-      console.error("Error fetching galleries:", error);
-      setHasMore(false);
+      console.error("Error in fetchGalleries:", error);
     }
   };
 
   useEffect(() => {
-    const handleNewImage = (event) => {
-      setGalleries((prev) => {
-        const newGalleryList = [...prev, event.detail]; // Masukkan di akhir
-        return newGalleryList.sort(() => Math.random() - 0.5); // Acak posisi
-      });
-    };
-
-    window.addEventListener("newGalleryImage", handleNewImage);
-
-    return () => {
-      window.removeEventListener("newGalleryImage", handleNewImage);
-    };
-  }, []);
+    if (galleries.length > 0) {
+      cacheImages(galleries);
+    }
+  }, [galleries]);
 
   const handleGalleryClick = (galleryId) => {
     if (!isLoggedIn) {
@@ -135,14 +177,70 @@ const GalleryList = () => {
     }
   };
 
+// Fungsi untuk mendapatkan URL gambar
+const getImageUrl = async (gallery) => {
+  try {
+    const cacheKey = `image_${gallery.id}`;
+    const cachedImage = await localforage.getItem(cacheKey);
+    if (cachedImage) {
+      const url = URL.createObjectURL(cachedImage);
+      setImageUrls(prev => ({ ...prev, [gallery.id]: url }));
+      return url;
+    }
+    return `http://localhost:5000/${gallery.image_url}`;
+  } catch (error) {
+    console.error("Error getting image URL:", error);
+    return `http://localhost:5000/${gallery.image_url}`;
+  }
+};
+
+  // Tambahkan useEffect untuk cleanup URL objects
+  useEffect(() => {
+    return () => {
+      Object.values(imageUrls).forEach((url) => {
+        URL.revokeObjectURL(url);
+      });
+    };
+  }, [imageUrls]);
+
+  useEffect(() => {
+    if (galleries.length > 0) {
+      galleries.forEach((gallery) => {
+        getImageUrl(gallery); // Pre-load and cache images
+      });
+    }
+  }, [galleries]);
+
   const breakpointColumnsObj = {
-    default: 6, // Tambahkan 6 kolom untuk layar besar
-    1600: 5, // Layar lebih kecil
-    1400: 4, // Laptop standar
-    1024: 3, // Tablet landscape
-    768: 2, // Tablet portrait
-    480: 1, // Ponsel
+    default: 6,
+    1600: 5,
+    1400: 4,
+    1024: 3,
+    768: 2,
+    480: 1,
   };
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-red-600">
+            Error Loading Galleries
+          </h2>
+          <p className="text-gray-600 mt-2">{error}</p>
+          <button
+            onClick={() => {
+              setError(null);
+              setPage(1);
+              fetchGalleries();
+            }}
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#faf8f4] p-6 pt-20">
@@ -176,7 +274,7 @@ const GalleryList = () => {
         <InfiniteScroll
           dataLength={filteredGalleries.length}
           next={fetchGalleries}
-          hasMore={hasMore && !searchQuery} // Disable infinite scroll saat ada query pencarian
+          hasMore={hasMore && !searchQuery}
           loader={
             !searchQuery && (
               <p className="text-center text-gray-600">
@@ -199,12 +297,24 @@ const GalleryList = () => {
                 transition={{ duration: 0.5, ease: "easeOut" }}>
                 <LazyLoadImage
                   key={gallery.id}
-                  src={`http://localhost:5000/${gallery.image_url}`}
+                  src={
+                    imageUrls[gallery.id] ||
+                    `http://localhost:5000/${gallery.image_url}`
+                  }
                   alt={gallery.title}
                   className="w-full h-auto object-cover rounded-xl transition-transform duration-300 group-hover:scale-105"
                   effect="blur"
                   placeholderSrc="https://via.placeholder.com/300x400?text=Loading"
                   loading="lazy"
+                  onError={async (e) => {
+                    try {
+                      const url = await getImageUrl(gallery);
+                      e.target.src = url;
+                    } catch (error) {
+                      console.error("Error loading image:", error);
+                      e.target.src = `http://localhost:5000/${gallery.image_url}`;
+                    }
+                  }}
                 />
                 <div className="absolute inset-0 bg-white/70 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                   <p className="text-lg font-semibold text-gray-800">
@@ -225,7 +335,6 @@ const GalleryList = () => {
         </div>
       )}
 
-      {/* Modal untuk login */}
       {showModal && (
         <div
           className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"

@@ -23,9 +23,6 @@ const ProfilePage = () => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [galleries, setGalleries] = useState([]);
-  const [activeTab, setActiveTab] = useState(() => {
-    return localStorage.getItem("activeTab") || "gallery";
-  });
   const [albums, setAlbums] = useState([]);
   const [showCreateAlbumModal, setShowCreateAlbumModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -48,6 +45,9 @@ const ProfilePage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingPhotoIndex, setEditingPhotoIndex] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [activeTab, setActiveTab] = useState(() => {
+    return localStorage.getItem("activeTab") || "gallery";
+  });
 
   useEffect(() => {
     localStorage.setItem("activeTab", activeTab);
@@ -130,17 +130,17 @@ const ProfilePage = () => {
       image_url: photo.image_url,
       fromGallery: true,
     };
-  
+
     // Cek apakah foto sudah dipilih sebelumnya
     if (selectedGalleryPhotos.includes(photo.id)) {
-      // Jika foto sudah dipilih, hapus dari state selectedGalleryPhotos dan previewUrls
+      // Jika foto sudah dipilih, hapus dari state
       setSelectedGalleryPhotos((prev) => prev.filter((id) => id !== photo.id));
       setPhotos((prev) => prev.filter((p) => p.id !== photo.id));
       setPreviewUrls((prev) =>
         prev.filter((url) => url !== `http://localhost:5000/${photo.image_url}`)
       );
     } else {
-      // Jika foto belum dipilih, tambahkan ke selectedGalleryPhotos dan previewUrls
+      // Jika foto belum dipilih, tambahkan ke state
       setSelectedGalleryPhotos((prev) => [...prev, photo.id]);
       setPhotos((prev) => [...prev, photoInfo]);
       setPreviewUrls((prev) => [
@@ -149,13 +149,12 @@ const ProfilePage = () => {
       ]);
     }
   };
-  
+
   const handleCancel = () => {
     // Ketika batal, hanya hapus foto yang baru dipilih
     setSelectedGalleryPhotos([]);
     setShowGalleryModal(false); // Menutup modal
   };
-  
 
   // Tambahkan useEffect untuk memuat galeri saat modal dibuka
   useEffect(() => {
@@ -211,28 +210,12 @@ const ProfilePage = () => {
   const handleFileSelect = (event) => {
     const newFiles = Array.from(event.target.files);
 
-    // Buat array untuk menyimpan foto-foto baru dengan properti yang tepat
-    const newPhotos = newFiles.map((file) => ({
-      file, // Simpan file asli
-      title: "", // Judul kosong untuk diisi nanti
-      description: "", // Deskripsi kosong untuk diisi nanti
-      fromDevice: true, // Penanda bahwa ini dari perangkat
-    }));
-
-    // Simpan foto-foto baru ke state
-    setPhotos((prev) => [...prev, ...newPhotos]);
-
-    // Buat URL preview untuk setiap file
-    const newUrls = newFiles.map((file) => URL.createObjectURL(file));
-    setPreviewUrls((prev) => [...prev, ...newUrls]);
-
-    // Tutup modal pemilihan sumber foto dan kembali ke modal pembuatan album
-    setShowPhotoSourceModal(false);
-
-    // Kita tidak perlu membuka modal upload karena kita sedang dalam proses pembuatan album
-    // setShowUploadModal(false); // Pastikan modal upload tidak terbuka
+    if (newFiles.length > 0) {
+      setPendingFile(newFiles[0]); // Simpan file yang akan dikompresi
+      setShowCompressionModal(true);
+      setShowPhotoSourceModal(false);
+    }
   };
-  1;
 
   // Perbaikan pada useEffect untuk menangani konflik modal
   useEffect(() => {
@@ -260,7 +243,6 @@ const ProfilePage = () => {
   };
 
   // Fungsi untuk menyimpan album
-  // Perbaikan pada handleSubmit untuk menangani format data yang benar
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -288,17 +270,23 @@ const ProfilePage = () => {
       formData.append("description", description?.trim() || "");
       formData.append("user_id", userId);
 
-      // Handle foto dari perangkat
-      photos.forEach((photo, index) => {
-        // Jika foto dari perangkat, lampirkan file di FormData
-        if (photo.fromDevice && photo.file) {
-          formData.append("photos", photo.file);
+      // Handle foto dari perangkat dengan metadata
+      const devicePhotos = photos.filter((photo) => photo.fromDevice);
+      if (devicePhotos.length > 0) {
+        // Append files
+        devicePhotos.forEach((photo) => {
+          if (photo.file) {
+            formData.append("photos", photo.file);
+          }
+        });
 
-          // Jika diperlukan, kirim juga metadata foto (judul, deskripsi)
-          // Di sini kita bisa menambahkan logic untuk mengirim metadata foto
-          // jika backend sudah mendukung
-        }
-      });
+        // Append metadata
+        const photoMetadata = devicePhotos.map((photo) => ({
+          title: photo.title || "Untitled",
+          description: photo.description || "",
+        }));
+        formData.append("photos_metadata", JSON.stringify(photoMetadata));
+      }
 
       // Handle foto dari galeri
       const galleryPhotos = photos.filter((photo) => photo.fromGallery);
@@ -336,18 +324,14 @@ const ProfilePage = () => {
 
       setAlbums(updatedAlbumsResponse.data);
 
-      // Reset form dan tutup modal
+      // Reset form
       setTitle("");
       setDescription("");
       setPhotos([]);
       setPreviewUrls([]);
       setSelectedGalleryPhotos([]);
       setShowCreateAlbumModal(false);
-
-      // Tampilkan pemberitahuan keberhasilan dan reload halaman
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
+      window.location.reload();
     } catch (error) {
       console.error("Error creating album:", error);
       alert(
@@ -403,64 +387,45 @@ const ProfilePage = () => {
       setShowCompressionModal(true); // Tampilkan modal konfirmasi kompresi
     }
   };
-
-  const handleCompressDecision = async (shouldCompress) => {
-    setShowCompressModal(false); // Tutup modal
-
-    if (!pendingFile) return;
-
-    setSelectedFiles([pendingFile]);
-    setPreviewUrl(URL.createObjectURL(pendingFile));
-
-    if (shouldCompress) {
-      try {
-        const compressed = await compressImage(pendingFile);
-        setCompressedFile(compressed);
-        setPreviewUrl(URL.createObjectURL(compressed));
-      } catch (error) {
-        alert("Gagal mengompres gambar. Menggunakan gambar original.");
-        setCompressedFile(null);
-      }
-    } else {
-      setCompressedFile(null);
-    }
-
-    setPendingFile(null);
-  };
-
   // Lalu perbarui fungsi handleUpload untuk menyertakan kategori
   const handleUpload = async (e) => {
     e.preventDefault();
-
-    if (!title.trim()) {
-      setError("Judul harus diisi!");
-      return;
-    }
-
-    if (categories.length === 0) {
-      setError("Minimal satu kategori harus diisi!");
-      return;
-    }
-
-    if (selectedFiles.length === 0) {
-      setError("Silakan pilih gambar sebelum mengupload!");
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("title", title);
-    formData.append("description", description || "");
-    categories.forEach((category) => {
-      formData.append("categories[]", category);
-    });
-
-    if (compressedFile) {
-      formData.append("image", compressedFile);
-    } else {
-      formData.append("image", selectedFiles[0]);
-    }
-
+  
     try {
+      if (!title.trim()) {
+        setError("Judul harus diisi!");
+        return;
+      }
+  
+      if (categories.length === 0) {
+        setError("Minimal satu kategori harus diisi!");
+        return;
+      }
+  
+      if (selectedFiles.length === 0) {
+        setError("Silakan pilih gambar sebelum mengupload!");
+        return;
+      }
+  
+      const formData = new FormData();
+      formData.append("title", title.trim());
+      formData.append("description", description?.trim() || "");
+  
+      // Append setiap kategori dengan key yang sama
+      categories.forEach(category => {
+        formData.append("categories", category.trim());
+      });
+  
+      // Append file
+      if (compressedFile) {
+        formData.append("image", compressedFile);
+      } else {
+        formData.append("image", selectedFiles[0]);
+      }
+  
+      // Debug log
+      console.log("Sending categories:", categories);
+      
       const token = localStorage.getItem("token");
       const response = await axios.post(
         "http://localhost:5000/api/galleries",
@@ -472,10 +437,12 @@ const ProfilePage = () => {
           },
         }
       );
-
+  
+      console.log("Upload response:", response.data);
+  
       setShowUploadModal(false);
-
-      // Reset semua state setelah upload
+  
+      // Reset state
       setTitle("");
       setDescription("");
       setCategories([]);
@@ -483,26 +450,25 @@ const ProfilePage = () => {
       setCompressedFile(null);
       setPreviewUrl(null);
       setError("");
-
-      // Ambil gambar baru dan masukkan secara acak
-      const newImage = response.data.gallery;
-      window.dispatchEvent(
-        new CustomEvent("newGalleryImage", { detail: newImage })
-      );
-
-      // Refresh halaman setelah upload
+  
+      // Refresh halaman
       setTimeout(() => {
         window.location.reload();
       }, 500);
     } catch (error) {
       console.error("Error uploading file:", error);
-      setError("Gagal mengupload gambar, coba lagi!");
+      console.error("Error response:", error.response?.data);
+      setError("Gagal mengupload gambar: " + (error.response?.data?.message || "Terjadi kesalahan"));
     }
   };
-  // Fungsi untuk menambah kategori
+  
+  // Fungsi handleAddCategory yang diperbaiki
   const handleAddCategory = () => {
     if (newCategory.trim()) {
-      setCategories([...categories, newCategory.trim()]);
+      // Hindari duplikasi kategori
+      if (!categories.includes(newCategory.trim())) {
+        setCategories(prev => [...prev, newCategory.trim()]);
+      }
       setNewCategory(""); // Reset input
     }
   };
@@ -727,6 +693,31 @@ const ProfilePage = () => {
               />
             </div>
 
+            {/* Search Bar */}
+            <div className="mb-6">
+              <input
+                type="text"
+                onChange={(e) => {
+                  const searchQuery = e.target.value.toLowerCase();
+                  if (!searchQuery) {
+                    fetchUserGalleries(); // Reset ke data original
+                    return;
+                  }
+                  const filteredGalleries = userGalleries.filter(
+                    (photo) =>
+                      photo.title?.toLowerCase().includes(searchQuery) ||
+                      photo.description?.toLowerCase().includes(searchQuery) ||
+                      photo.categories?.some((category) =>
+                        category.name.toLowerCase().includes(searchQuery)
+                      )
+                  );
+                  setUserGalleries(filteredGalleries);
+                }}
+                placeholder="Cari Gambar..."
+                className="w-full p-2.5 rounded-full border border-gray-300 focus:ring-2 focus:ring-blue-400 focus:outline-none text-sm text-gray-600"
+              />
+            </div>
+
             {/* Foto Galeri */}
             <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-4 mb-4">
               {userGalleries.map((photo) => (
@@ -744,25 +735,81 @@ const ProfilePage = () => {
                     />
                   </div>
                   {selectedGalleryPhotos.includes(photo.id) && (
-                    <div className="absolute inset-0 bg-neutral-300 bg-opacity-20 flex items-center justify-center rounded">
+                    <div className="absolute inset-0 flex items-center justify-center rounded">
                       <FontAwesomeIcon
                         icon={faCheck}
-                        className="text-white bg-gray-400 rounded-full p-2 text-2xl"
+                        className="text-white bg-sky-400 rounded-full p-2 text-2xl"
                       />
                     </div>
                   )}
                 </div>
               ))}
             </div>
+            {/* Edit Photo Detail Modal */}
+            {editingPhotoIndex !== null && (
+              <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+                <div className="bg-white p-6 rounded-lg shadow-lg w-[400px]">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-lg font-semibold">Edit Detail Foto</h2>
+                    <FontAwesomeIcon
+                      icon={faX}
+                      className="cursor-pointer"
+                      onClick={() => setEditingPhotoIndex(null)}
+                    />
+                  </div>
+
+                  <div className="w-full h-40 flex items-center justify-center overflow-hidden mb-4 rounded">
+                    <img
+                      src={previewUrls[editingPhotoIndex]}
+                      alt="Preview"
+                      className="max-w-full max-h-40 object-contain"
+                    />
+                  </div>
+
+                  <input
+                    type="text"
+                    placeholder="Judul Foto"
+                    value={photos[editingPhotoIndex]?.title || ""}
+                    onChange={(e) =>
+                      handlePhotoDetailChange(
+                        editingPhotoIndex,
+                        "title",
+                        e.target.value
+                      )
+                    }
+                    className="w-full p-2 mb-3 border rounded"
+                  />
+
+                  <textarea
+                    placeholder="Deskripsi Foto (Opsional)"
+                    value={photos[editingPhotoIndex]?.description || ""}
+                    onChange={(e) =>
+                      handlePhotoDetailChange(
+                        editingPhotoIndex,
+                        "description",
+                        e.target.value
+                      )
+                    }
+                    className="w-full p-2 mb-3 border rounded"
+                    rows="3"
+                  />
+
+                  <button
+                    onClick={() => setEditingPhotoIndex(null)}
+                    className="w-full p-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                    Simpan Detail
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => {
-                  handleCancel()
+                  handleCancel();
                   setPhotos([]); // Kosongkan array photos
                   setPreviewUrls([]); // Kosongkan previewUrls
                   setShowGalleryModal(false); // Tutup modal galeri
-                  
                 }}
                 className="px-4 py-2 bg-gray-500 text-white rounded-full hover:bg-gray-600">
                 Batal
@@ -776,7 +823,6 @@ const ProfilePage = () => {
           </div>
         </div>
       )}
-
       {/* end album */}
 
       {/* Modal Logout */}
@@ -1056,7 +1102,7 @@ const ProfilePage = () => {
                       navigate(`/album/${album.album_id}`);
                     }
                   }}>
-                  <div className="relative group overflow-hidden rounded-lg cursor-pointer">
+                  <div className="relative group overflow-hidden border border-violet-100 rounded-lg cursor-pointer">
                     <div className="grid grid-cols-3 gap-0.5 bg-white">
                       {album.photos && album.photos.length > 0 ? (
                         album.photos.slice(0, 3).map((photo, index) => (
@@ -1073,13 +1119,21 @@ const ProfilePage = () => {
                           </div>
                         ))
                       ) : (
-                        <div className="col-span-3 h-48 flex items-center justify-center bg-neutral-200">
+                        <div className="col-span-3 h-48 flex items-center justify-center bg-[#f0f4f9]">
                           <p className="text-gray-600">Tidak ada item</p>
                         </div>
                       )}
                     </div>
+
+                    {/* Display remaining photo count if more than 3 photos exist */}
+                    {album.photos.length > 3 && (
+                      <div className="absolute bottom-0 right-0 p-2 text-white text-lg font-semibold">
+                        +{album.photos.length - 3}
+                      </div>
+                    )}
+
                     <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
-                      <p className="text-white text-lg font-medium">
+                      <p className="text-white text-lg font-semibold">
                         {album.title}
                       </p>
                     </div>
@@ -1087,7 +1141,9 @@ const ProfilePage = () => {
                 </div>
               ))
             ) : (
-              <div className="w-full h-32 flex items-center justify-center text-lg"></div>
+              <div className="w-full h-32 flex items-center justify-center text-lg">
+                No Albums
+              </div>
             )}
           </div>
         )}

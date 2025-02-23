@@ -26,12 +26,17 @@ const GalleryDetail = () => {
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showCommentOptions, setShowCommentOptions] = useState(null);
+  const [showEditCommentModal, setShowEditCommentModal] = useState(false);
+  const [editCommentId, setEditCommentId] = useState(null);
+  const [editCommentText, setEditCommentText] = useState("");
+  const [showDeleteCommentModal, setShowDeleteCommentModal] = useState(false);
+  const [commentToDelete, setCommentToDelete] = useState(null);
 
   useEffect(() => {
     axios
       .get(`http://localhost:5000/api/galleries/${id}`)
       .then((res) => {
-        console.log("Gallery Data:", res.data); // Log seluruh data yang diterima
         setGallery(res.data);
       })
       .catch(() => console.error("Gagal mengambil detail galeri"));
@@ -177,6 +182,61 @@ const GalleryDetail = () => {
       setLoading(false);
     }
   };
+  // Tambahkan fungsi untuk handle edit dan delete komentar
+  const handleEditComment = async (commentId, newText) => {
+    try {
+      await axios.put(
+        `http://localhost:5000/api/comments/${commentId}`,
+        { comment: newText },
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }
+      );
+
+      // Refresh komentar
+      const response = await axios.get(
+        `http://localhost:5000/api/comments/${id}`
+      );
+      setComments(response.data);
+      setShowEditCommentModal(false);
+      setEditCommentId(null);
+      setEditCommentText("");
+    } catch (error) {
+      console.error("Error updating comment:", error);
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    try {
+      await axios.delete(`http://localhost:5000/api/comments/${commentId}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+
+      // Refresh komentar
+      const response = await axios.get(
+        `http://localhost:5000/api/comments/${id}`
+      );
+      setComments(response.data);
+      setShowDeleteCommentModal(false);
+      setCommentToDelete(null);
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+    }
+  };
+
+  // Tambahkan useEffect untuk handle click outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showCommentOptions && !event.target.closest(".comment-options")) {
+        setShowCommentOptions(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showCommentOptions]);
 
   // Add function to handle image download
   const handleDownload = async () => {
@@ -202,17 +262,10 @@ const GalleryDetail = () => {
     }
   };
   if (!gallery) return <div></div>;
-  // Explicit type conversion and comparison
   const isOwner = Number(userId) === Number(gallery.user_id);
-  console.log(isOwner, {
-    userId: Number(userId),
-    userIdType: typeof Number(userId),
-    galleryUserId: Number(gallery.user_id),
-    galleryUserIdType: typeof Number(gallery.user_id),
-  });
 
   return (
-    <div className="flex justify-center items-center bg-[#faf8f4] h-screen">
+    <div className="flex justify-center items-center bg-[#faf8f4] min-h-screen">
       <div className="flex max-w-5xl w-full bg-white shadow-lg rounded-xl overflow-hidden relative">
         {/* Tombol Close (X) */}
         <FontAwesomeIcon
@@ -274,7 +327,6 @@ const GalleryDetail = () => {
               </div>
             )}
           </div>
-
           {showDeleteModal && (
             <div
               className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
@@ -304,7 +356,6 @@ const GalleryDetail = () => {
               </div>
             </div>
           )}
-
           {showEditModal && (
             <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-10">
               <div
@@ -349,7 +400,6 @@ const GalleryDetail = () => {
             <FontAwesomeIcon icon={liked ? solidHeart : regularHeart} />
             <span className="ml-2">{likes}</span>
           </button>
-
           {/* Detail */}
           <div className="mt-2 text-sm text-gray-400 flex items-center">
             <img
@@ -377,7 +427,6 @@ const GalleryDetail = () => {
           </div>
           {/* Deskripsi dan Tanggal Upload */}
           <p className="text-gray-600 mt-3">{gallery.description}</p>
-
           {/* Kategori */}
           {gallery.categories && gallery.categories.length > 0 && (
             <div className="mt-4">
@@ -399,7 +448,6 @@ const GalleryDetail = () => {
               </div>
             </div>
           )}
-
           {/* Komentar */}
           <div className="mt-6">
             <h2 className="text-lg font-bold mb-2">
@@ -437,13 +485,13 @@ const GalleryDetail = () => {
               {comments.map((comment) => (
                 <div
                   key={comment.id}
-                  className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex items-start">
+                  className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex items-start relative">
                   <img
                     src="https://upload.wikimedia.org/wikipedia/commons/a/ac/Default_pfp.jpg"
                     alt="Profile"
                     className="w-6 h-6 rounded-full mr-2"
                   />
-                  <div>
+                  <div className="flex-grow">
                     <span
                       className="text-sm text-blue-500 cursor-pointer hover:underline"
                       onClick={() => navigate(`/profile/${comment.User?.id}`)}>
@@ -451,10 +499,119 @@ const GalleryDetail = () => {
                     </span>
                     <p className="text-gray-700">{comment.comment}</p>
                   </div>
+
+                  {/* Tombol elipsis untuk komentar milik user */}
+                  {parseInt(comment.user_id) === parseInt(userId) && (
+                    <div className="relative comment-options">
+                      <button
+                        onClick={() => setShowCommentOptions(comment.id)}
+                        className="text-gray-500 hover:text-gray-70 text-xl">
+                        <FontAwesomeIcon icon={faEllipsisH} />
+                      </button>
+
+                      {showCommentOptions === comment.id && (
+                        <div className="absolute right-0 mt-2 bg-white shadow-lg rounded-xl w-48 z-10 comment-options">
+                          <button
+                            onClick={() => {
+                              setEditCommentId(comment.id);
+                              setEditCommentText(comment.comment);
+                              setShowEditCommentModal(true);
+                              setShowCommentOptions(null);
+                            }}
+                            className="block w-full text-left px-4 py-2 hover:bg-gray-100">
+                            Edit Komentar
+                          </button>
+                          <button
+                            onClick={() => {
+                              setCommentToDelete(comment.id);
+                              setShowDeleteCommentModal(true);
+                              setShowCommentOptions(null);
+                            }}
+                            className="block w-full text-left px-4 py-2 text-red-600 hover:bg-gray-100">
+                            Hapus Komentar
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
-          </div>
+            {/* Pindahkan modal di luar div scroll dan sejajar dengan div komentar */}
+          </div>{" "}
+          {/* Modal Edit Komentar */}
+          {showEditCommentModal && (
+            <div
+              className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+              onClick={() => setShowEditCommentModal(false)}>
+              <div
+                className="bg-white p-6 rounded-xl shadow-lg max-w-md w-full"
+                onClick={(e) => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold">Edit Komentar</h2>
+                  <button
+                    onClick={() => {
+                      setShowEditCommentModal(false);
+                      setEditCommentId(null);
+                      setEditCommentText("");
+                    }}
+                    className="text-gray-500 hover:text-gray-700">
+                    <FontAwesomeIcon icon={faX} />
+                  </button>
+                </div>
+                <textarea
+                  value={editCommentText}
+                  onChange={(e) => setEditCommentText(e.target.value)}
+                  className="w-full p-3 border rounded-md mb-4"
+                  rows="3"
+                />
+                <div className="flex justify-end gap-4">
+                  <button
+                    onClick={() => {
+                      setShowEditCommentModal(false);
+                      setEditCommentId(null);
+                      setEditCommentText("");
+                    }}
+                    className="px-4 py-2 bg-gray-300 rounded-full hover:bg-gray-400">
+                    Batal
+                  </button>
+                  <button
+                    onClick={() =>
+                      handleEditComment(editCommentId, editCommentText)
+                    }
+                    className="px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600">
+                    Simpan
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          {/* Modal Konfirmasi Delete Komentar */}
+          {showDeleteCommentModal && (
+            <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+              <div className="bg-white p-6 rounded-xl shadow-lg max-w-sm w-full text-center">
+                <h2 className="text-lg font-semibold">Konfirmasi Hapus</h2>
+                <p className="text-gray-600 mt-2">
+                  Anda yakin ingin menghapus komentar ini?
+                </p>
+                <div className="flex justify-center gap-4 mt-4">
+                  <button
+                    onClick={() => {
+                      setShowDeleteCommentModal(false);
+                      setCommentToDelete(null);
+                    }}
+                    className="px-4 py-2 bg-gray-300 rounded-full hover:bg-gray-400">
+                    Batal
+                  </button>
+                  <button
+                    onClick={() => handleDeleteComment(commentToDelete)}
+                    className="px-4 py-2 bg-red-500 text-white rounded-full hover:bg-red-700">
+                    Hapus Komentar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
