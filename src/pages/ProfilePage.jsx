@@ -331,7 +331,6 @@ const ProfilePage = () => {
       setPreviewUrls([]);
       setSelectedGalleryPhotos([]);
       setShowCreateAlbumModal(false);
-      window.location.reload();
     } catch (error) {
       console.error("Error creating album:", error);
       alert(
@@ -653,12 +652,12 @@ const ProfilePage = () => {
             </div>
 
             <div className="space-y-4">
-              <button
+              {/* <button
                 onClick={() => handlePhotoSourceSelect("device")}
                 className="w-full p-3 bg-sky-500 text-white rounded-full hover:bg-sky-600 flex items-center justify-center gap-2">
                 <FontAwesomeIcon icon={faUpload} />
                 Unggah dari Perangkat
-              </button>
+              </button> */}
 
               <button
                 onClick={() => handlePhotoSourceSelect("gallery")}
@@ -1142,7 +1141,6 @@ const ProfilePage = () => {
               ))
             ) : (
               <div className="w-full h-32 flex items-center justify-center text-lg">
-                No Albums
               </div>
             )}
           </div>

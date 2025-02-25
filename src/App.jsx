@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import DashboardAdmin from "./pages/AdminDashboard";
 import Login from "./pages/Login";
@@ -12,15 +12,22 @@ import { library } from "@fortawesome/fontawesome-svg-core";
 import { faHeart as solidHeart } from "@fortawesome/free-solid-svg-icons";
 import { faHeart as regularHeart } from "@fortawesome/free-regular-svg-icons";
 
-// Tambahkan ikon yang digunakan ke library
 library.add(solidHeart, regularHeart);
+
+// Komponen wrapper untuk Navbar
+const NavbarWrapper = () => {
+  const location = useLocation();
+  const showNavbar = location.pathname === "/" || location.pathname === "/admin-dashboard";
+  
+  return showNavbar ? <Navbar /> : null;
+};
 
 const App = () => {
   return (
     <Router>
-      <Navbar />
+      <NavbarWrapper />
       <Routes>
-        <Route path="/" element={<Home />} /> {/* Home sebagai halaman utama */}
+        <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/profile" element={<ProfilePage />} />

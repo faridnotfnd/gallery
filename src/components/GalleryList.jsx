@@ -23,7 +23,8 @@ const GalleryList = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState(null);
   const [imageUrls, setImageUrls] = useState({});
-  const limit = 15;
+  const [isLoading, setIsLoading] = useState(false);
+  const limit = 25;
 
   const handleSearch = (query) => {
     setIsSearching(true);
@@ -74,42 +75,43 @@ const GalleryList = () => {
   }, []);
 
   // Fungsi untuk cache gambar
-  const cacheImages = async (galleries) => {
-    if (!Array.isArray(galleries)) return;
-
-    const cachePromises = galleries.map(async (gallery) => {
+  const cacheImages = async (galleriesToCache) => {
+    const cachePromises = galleriesToCache.map(async (gallery) => {
       if (!gallery?.image_url) return;
-
+      
       const imageUrl = `http://localhost:5000/${gallery.image_url}`;
       const cacheKey = `image_${gallery.id}`;
-
+  
       try {
-        // Cek apakah gambar sudah ada di cache
         const cachedImage = await localforage.getItem(cacheKey);
         if (!cachedImage) {
           const response = await fetch(imageUrl);
-          if (!response.ok)
-            throw new Error(`HTTP error! status: ${response.status}`);
+          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
           const blob = await response.blob();
           await localforage.setItem(cacheKey, blob);
-          console.log(`Successfully cached image ${gallery.id}`);
+          
+          // Update imageUrls state with the new blob URL
+          const url = URL.createObjectURL(blob);
+          setImageUrls(prev => ({ ...prev, [gallery.id]: url }));
         }
       } catch (error) {
         console.error(`Failed to cache image ${gallery.id}:`, error);
       }
     });
-
+  
     await Promise.allSettled(cachePromises);
   };
 
   // Update fetchGalleries to include caching
   const fetchGalleries = async () => {
+    if (isLoading) return;
     try {
       const nextPage = page;
       const cacheKey = `galleries_page_${nextPage}`;
 
       // Online fetch
       try {
+        setIsLoading(true);
         const response = await axios.get(
           `http://localhost:5000/api/galleries?page=${nextPage}&limit=${limit}&t=${Date.now()}`
         );
@@ -131,6 +133,9 @@ const GalleryList = () => {
         return;
       } catch (error) {
         console.log("Failed to fetch new data, trying cache...");
+      }
+      finally {
+        setIsLoading(false);
       }
 
       // Offline/fallback: ambil dari cache
@@ -272,7 +277,7 @@ const getImageUrl = async (gallery) => {
         </div>
       ) : (
         <InfiniteScroll
-          dataLength={filteredGalleries.length}
+        dataLength={galleries.length}
           next={fetchGalleries}
           hasMore={hasMore && !searchQuery}
           loader={
@@ -282,7 +287,7 @@ const getImageUrl = async (gallery) => {
               </p>
             )
           }
-          scrollThreshold={0.9}>
+          scrollThreshold={0.8}>
           <Masonry
             breakpointCols={breakpointColumnsObj}
             className="flex gap-6 w-full"
